@@ -1,0 +1,44 @@
+@model IEnumerable<RetencionesRG830.Domain.Entidades.Cliente>
+
+@{
+    ViewData["Title"] = "Clientes";
+}
+
+<h1>Clientes</h1>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">+ Nuevo cliente</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>CUIT</th>
+            <th>Razón social</th>
+            <th>Localidad</th>
+            <th>Activo</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var cliente in Model)
+    {
+        <tr>
+            <td>@cliente.Cuit</td>
+            <td>@cliente.RazonSocial</td>
+            <td>@cliente.Localidad</td>
+            <td>@(cliente.Activo ? "Sí" : "No")</td>
+            <td>
+                <a asp-controller="Proveedores" asp-action="Index" asp-route-clienteId="@cliente.Id" class="btn btn-sm btn-outline-primary">Ver proveedores</a>
+                <a asp-action="Edit" asp-route-id="@cliente.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                 <a asp-controller="Operaciones" asp-action="Create" asp-route-clienteId="@cliente.Id" class="btn btn-sm btn-outline-success">Nueva operación</a>
+                <form asp-action="CambiarActivo" asp-route-id="@cliente.Id" method="post" style="display:inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                        @(cliente.Activo ? "Dar de baja" : "Reactivar")
+                    </button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

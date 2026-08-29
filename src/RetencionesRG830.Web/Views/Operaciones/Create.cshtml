@@ -1,0 +1,72 @@
+@model RetencionesRG830.Web.Models.OperacionViewModel
+
+@{
+    ViewData["Title"] = "Nueva operación";
+}
+
+<h1>Nueva operación</h1>
+<p class="text-muted">Cliente: <strong>@Model.ClienteRazonSocial</strong></p>
+<form asp-action="Revisar" method="post" data-enter-siguiente>
+    <input type="hidden" asp-for="ClienteId" />
+    <input type="hidden" asp-for="ClienteRazonSocial" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="ProveedorId" class="form-label"></label>
+            <select asp-for="ProveedorId" asp-items="ViewBag.Proveedores" class="form-select">
+                <option value="">-- Elegí un proveedor --</option>
+            </select>
+            <span asp-validation-for="ProveedorId" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label asp-for="RegimenId" class="form-label"></label>
+            <select asp-for="RegimenId" asp-items="ViewBag.Regimenes" class="form-select">
+                <option value="">-- Elegí un régimen --</option>
+            </select>
+            <span asp-validation-for="RegimenId" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <label asp-for="TipoComprobante" class="form-label"></label>
+            <input asp-for="TipoComprobante" type="number" class="form-control" />
+            <div class="form-text">Código AFIP: 1 = Factura, 4 = Recibo.</div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <label asp-for="PuntoVenta" class="form-label"></label>
+            <input asp-for="PuntoVenta" type="number" class="form-control" />
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <label asp-for="NumeroComprobante" class="form-label"></label>
+            <input asp-for="NumeroComprobante" type="number" class="form-control" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label asp-for="FechaComprobante" class="form-label"></label>
+            <input asp-for="FechaComprobante" type="date" class="form-control" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label asp-for="FechaRetencion" class="form-label"></label>
+            <input asp-for="FechaRetencion" type="date" class="form-control" />
+            <div class="form-text">Define en qué mes acumula la retención.</div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label asp-for="ImporteComprobante" class="form-label"></label>
+            <input asp-for="ImporteComprobante" type="number" step="0.01" class="form-control" />
+        </div>
+
+        <div class="col-md-6 mb-3">
+            <label asp-for="ImporteGravado" class="form-label"></label>
+            <input asp-for="ImporteGravado" type="number" step="0.01" class="form-control" />
+            <span asp-validation-for="ImporteGravado" class="text-danger"></span>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Calcular retención</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

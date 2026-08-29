@@ -1,0 +1,48 @@
+@model RetencionesRG830.Domain.Entidades.Operacion
+
+@{
+    ViewData["Title"] = "Anular operación";
+}
+
+<h1>Anular operación</h1>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-warning">@TempData["Mensaje"]</div>
+}
+
+<div class="alert alert-danger" style="max-width:640px">
+    La operación <strong>no se borra</strong>: queda registrada como anulada,
+    con el motivo, la fecha y quién la anuló. El número de certificado
+    @Model.NumeroCertificado no se reutiliza, para no dejar salteos en la
+    numeración.
+</div>
+
+<div class="card mb-3" style="max-width:640px">
+    <div class="card-header">Certificado N° @Model.NumeroCertificado</div>
+    <table class="table mb-0">
+        <tbody>
+            <tr><td>Cliente</td><td>@Model.Cliente?.RazonSocial</td></tr>
+            <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial</td></tr>
+            <tr><td>Comprobante</td><td>@Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td></tr>
+            <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>
+            <tr><td>Retención practicada</td><td class="text-end">@Model.MontoRetenido.ToString("C2")</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<form asp-action="Anular" method="post" style="max-width:640px">
+    <input type="hidden" name="id" value="@Model.Id" />
+
+    <div class="mb-3">
+        <label class="form-label">Motivo de la anulación</label>
+        <textarea name="motivo" class="form-control" rows="3" required minlength="5"></textarea>
+        <div class="form-text">
+            Por ejemplo: "Error en el importe gravado" o "Comprobante anulado
+            por el proveedor". Queda guardado como respaldo.
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-danger">Anular operación</button>
+    <a asp-action="Detalle" asp-route-id="@Model.Id" class="btn btn-secondary">Volver</a>
+</form>

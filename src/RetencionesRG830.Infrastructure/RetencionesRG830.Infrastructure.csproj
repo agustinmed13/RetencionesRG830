@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetencionesRG830.Domain\RetencionesRG830.Domain.csproj" />
+    <ProjectReference Include="..\RetencionesRG830.Application\RetencionesRG830.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Entity Framework Core con proveedor SQLite: una base de datos que es
+         un solo archivo (retenciones.db), sin necesidad de instalar ni
+         configurar un servidor de base de datos aparte. Ideal para
+         desarrollar y para la defensa del proyecto. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
+    <PackageReference Include="QuestPDF" Version="2026.2.*" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

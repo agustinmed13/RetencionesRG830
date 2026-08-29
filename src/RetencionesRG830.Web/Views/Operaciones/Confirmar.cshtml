@@ -1,0 +1,81 @@
+@model RetencionesRG830.Web.Models.OperacionViewModel
+
+@{
+    ViewData["Title"] = "Confirmar operación";
+}
+
+<h1>Revisá antes de confirmar</h1>
+<p class="text-muted">
+    Todavía no se guardó nada. El certificado se emite recién cuando
+    apretás "Confirmar".
+</p>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Datos cargados</div>
+            <table class="table mb-0">
+                <tbody>
+                    <tr><td>Cliente</td><td>@Model.ClienteRazonSocial</td></tr>
+                    <tr><td>Proveedor</td><td>@Model.ProveedorNombre</td></tr>
+                    <tr><td>Régimen</td><td>@Model.RegimenNombre</td></tr>
+                    <tr>
+                        <td>Comprobante</td>
+                        <td>@Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td>
+                    </tr>
+                    <tr><td>Fecha del comprobante</td><td>@Model.FechaComprobante.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td>Importe total</td><td class="text-end">@Model.ImporteComprobante.ToString("C2")</td></tr>
+                    <tr><td>Importe gravado</td><td class="text-end">@Model.ImporteGravado.ToString("C2")</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Retención calculada</div>
+            <table class="table mb-0">
+                <tbody>
+                    <tr>
+                        <td>Base acumulada del mes</td>
+                        <td class="text-end">@Model.Resultado!.NetoSujetoARetencion.ToString("C2")</td>
+                    </tr>
+                    <tr>
+                        <td>Mínimo no sujeto a retención</td>
+                        <td class="text-end">@Model.Resultado.MinimoNoSujetoARetencion.ToString("C2")</td>
+                    </tr>
+                    <tr>
+                        <td>Retención acumulada determinada</td>
+                        <td class="text-end">@Model.Resultado.RetencionAcumuladaDeterminada.ToString("C2")</td>
+                    </tr>
+                    <tr class="table-primary fw-bold">
+                        <td>Retención a practicar</td>
+                        <td class="text-end">@Model.Resultado.RetencionAPracticar.ToString("C2")</td>
+                    </tr>
+                </tbody>
+            </table>
+            @if (!string.IsNullOrEmpty(Model.Resultado.Observacion))
+            {
+                <div class="card-footer text-muted">@Model.Resultado.Observacion</div>
+            }
+        </div>
+    </div>
+</div>
+
+<form asp-action="Confirmar" method="post">
+    <input type="hidden" asp-for="ClienteId" />
+    <input type="hidden" asp-for="ClienteRazonSocial" />
+    <input type="hidden" asp-for="ProveedorId" />
+    <input type="hidden" asp-for="RegimenId" />
+    <input type="hidden" asp-for="TipoComprobante" />
+    <input type="hidden" asp-for="PuntoVenta" />
+    <input type="hidden" asp-for="NumeroComprobante" />
+    <input type="hidden" asp-for="ImporteComprobante" />
+    <input type="hidden" asp-for="ImporteGravado" />
+    <input type="hidden" name="FechaComprobante" value="@Model.FechaComprobante.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="FechaRetencion" value="@Model.FechaRetencion.ToString("yyyy-MM-dd")" />
+
+    <button type="submit" class="btn btn-primary btn-lg">Confirmar y emitir certificado</button>
+    <button type="submit" asp-action="Corregir" class="btn btn-secondary">Corregir</button>
+</form>

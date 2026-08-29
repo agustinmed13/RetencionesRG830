@@ -1,0 +1,47 @@
+@model RetencionesRG830.Domain.Entidades.Cliente
+
+@{
+    ViewData["Title"] = "Editar cliente";
+}
+
+<h1>Editar cliente</h1>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Cuit" class="form-label"></label>
+        <input asp-for="Cuit" class="form-control" />
+        <span asp-validation-for="Cuit" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="RazonSocial" class="form-label"></label>
+        <input asp-for="RazonSocial" class="form-control" />
+        <span asp-validation-for="RazonSocial" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Domicilio" class="form-label"></label>
+        <input asp-for="Domicilio" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Localidad" class="form-label"></label>
+        <input asp-for="Localidad" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="NombreFirmante" class="form-label"></label>
+        <input asp-for="NombreFirmante" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="CargoFirmante" class="form-label"></label>
+        <input asp-for="CargoFirmante" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>

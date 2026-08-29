@@ -1,0 +1,41 @@
+@{
+    ViewData["Title"] = "Archivo para SICORE";
+}
+
+<h1>Archivo para SICORE</h1>
+<p class="text-muted">
+    Genera el archivo de texto para importar en SICORE, con las retenciones
+    practicadas en el rango de fechas elegido.
+</p>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-warning">@TempData["Mensaje"]</div>
+}
+
+<form asp-action="Descargar" method="post" style="max-width: 520px">
+    <div class="mb-3">
+        <label class="form-label">Cliente (agente de retención)</label>
+        <select name="clienteId" asp-items="ViewBag.Clientes" class="form-select" required>
+            <option value="">-- Elegí un cliente --</option>
+        </select>
+    </div>
+
+    <div class="row">
+        <div class="col-6 mb-3">
+            <label class="form-label">Desde</label>
+            <input type="date" name="desde" value="@ViewBag.Desde" class="form-control" required />
+        </div>
+        <div class="col-6 mb-3">
+            <label class="form-label">Hasta</label>
+            <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control" required />
+        </div>
+    </div>
+
+    <div class="form-text mb-3">
+        El rango se aplica sobre la fecha de la retención. Para la presentación
+        quincenal, por ejemplo, del 1 al 15 o del 16 al fin de mes.
+    </div>
+
+    <button type="submit" class="btn btn-primary">Descargar archivo</button>
+</form>

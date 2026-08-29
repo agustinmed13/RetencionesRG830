@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\RetencionesRG830.Domain\RetencionesRG830.Domain.csproj" />
+    <ProjectReference Include="..\RetencionesRG830.Application\RetencionesRG830.Application.csproj" />
+    <ProjectReference Include="..\RetencionesRG830.Infrastructure\RetencionesRG830.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Design se necesita acá (en el proyecto "de arranque") para poder
+         correr los comandos "dotnet ef migrations add" y "dotnet ef database
+         update" desde la terminal. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

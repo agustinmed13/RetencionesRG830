@@ -1,0 +1,48 @@
+@model RetencionesRG830.Domain.Entidades.Operacion
+
+@{
+    ViewData["Title"] = "Operación registrada";
+}
+
+<h1>Operación registrada</h1>
+
+@if (TempData["Mensaje"] != null)
+{
+    <div class="alert alert-warning">@TempData["Mensaje"]</div>
+}
+
+@if (Model.Anulada)
+{
+    <div class="alert alert-danger" style="max-width:640px">
+        <strong>Operación anulada</strong>
+        el @(Model.FechaAnulacion?.ToString("dd/MM/yyyy HH:mm"))<br />
+        Motivo: @Model.MotivoAnulacion
+    </div>
+}
+<div class="card" style="max-width: 640px">
+    <div class="card-header">
+        Certificado Nº @Model.NumeroCertificado — @Model.Cliente?.RazonSocial
+    </div>
+    <table class="table mb-0">
+        <tbody>
+            <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial (@Model.Proveedor?.Cuit)</td></tr>
+            <tr><td>Régimen</td><td>@Model.Regimen?.Codigo - @Model.Regimen?.Descripcion</td></tr>
+            <tr><td>Comprobante</td><td>@Model.TipoComprobante - @Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td></tr>
+            <tr><td>Fecha del comprobante</td><td>@Model.FechaComprobante.ToString("dd/MM/yyyy")</td></tr>
+            <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>
+            <tr><td>Importe total</td><td class="text-end">@Model.ImporteComprobante.ToString("C2")</td></tr>
+            <tr><td>Importe gravado</td><td class="text-end">@Model.ImporteGravado.ToString("C2")</td></tr>
+            <tr class="table-primary fw-bold"><td>Retención practicada</td><td class="text-end">@Model.MontoRetenido.ToString("C2")</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<p class="mt-3">
+    <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+    @if (!Model.Anulada)
+    {
+        <a asp-action="Certificado" asp-route-id="@Model.Id" class="btn btn-success" target="_blank">Descargar certificado (PDF)</a>
+        <a asp-action="Create" asp-route-clienteId="@Model.ClienteId" class="btn btn-primary">Cargar otra</a>
+        <a asp-action="Anular" asp-route-id="@Model.Id" class="btn btn-outline-danger">Anular</a>
+    }
+</p>

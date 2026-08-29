@@ -1,0 +1,51 @@
+@model IEnumerable<RetencionesRG830.Domain.Entidades.Proveedor>
+
+@{
+    ViewData["Title"] = "Proveedores";
+    var clienteNombre = ViewBag.ClienteNombre as string;
+}
+
+<h1>Proveedores@(clienteNombre is null ? "" : $" de {clienteNombre}")</h1>
+
+<p>
+    <a asp-action="Create" asp-route-clienteId="@ViewBag.ClienteId" class="btn btn-primary">+ Nuevo proveedor</a>
+    @if (ViewBag.ClienteId is not null)
+    {
+        <a asp-action="Index" class="btn btn-outline-secondary">Ver todos los proveedores</a>
+    }
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Cliente</th>
+            <th>CUIT</th>
+            <th>Razón social</th>
+            <th>Localidad</th>
+            <th>Inscripto en Ganancias</th>
+            <th>Activo</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var proveedor in Model)
+    {
+        <tr>
+            <td>@proveedor.Cliente?.RazonSocial</td>
+            <td>@proveedor.Cuit</td>
+            <td>@proveedor.RazonSocial</td>
+            <td>@proveedor.Localidad</td>
+            <td>@(proveedor.InscriptoEnGanancias ? "Sí" : "No")</td>
+            <td>@(proveedor.Activo ? "Sí" : "No")</td>
+            <td>
+                <a asp-action="Edit" asp-route-id="@proveedor.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                <form asp-action="CambiarActivo" asp-route-id="@proveedor.Id" method="post" style="display:inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                        @(proveedor.Activo ? "Dar de baja" : "Reactivar")
+                    </button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

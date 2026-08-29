@@ -1,0 +1,48 @@
+@model IEnumerable<RetencionesRG830.Domain.Entidades.Operacion>
+
+@{
+    ViewData["Title"] = "Operaciones";
+}
+
+<h1>Operaciones</h1>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Cert. Nº</th>
+            <th>Cliente</th>
+            <th>Proveedor</th>
+            <th>Rég.</th>
+            <th>Fecha ret.</th>
+            <th class="text-end">Gravado</th>
+            <th class="text-end">Retenido</th>
+            <th>Estado</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var op in Model)
+    {
+                <tr>
+            <td>@op.NumeroCertificado</td>
+            <td>@op.Cliente?.RazonSocial</td>
+            <td>@op.Proveedor?.RazonSocial</td>
+            <td>@op.Regimen?.Codigo</td>
+            <td>@op.FechaRetencion.ToString("dd/MM/yyyy")</td>
+            <td class="text-end">@op.ImporteGravado.ToString("C2")</td>
+            <td class="text-end">@op.MontoRetenido.ToString("C2")</td>
+            <td>
+                @if (op.Anulada)
+                {
+                    <span class="badge bg-danger">Anulada</span>
+                }
+                else
+                {
+                    <span class="badge bg-success">Vigente</span>
+                }
+            </td>
+            <td><a asp-action="Detalle" asp-route-id="@op.Id" class="btn btn-sm btn-outline-secondary">Ver</a></td>
+        </tr>
+    }
+    </tbody>
+</table>
