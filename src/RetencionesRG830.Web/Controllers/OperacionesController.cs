@@ -226,7 +226,12 @@ public class OperacionesController : Controller
 
         var pdf = _pdf.Generar(operacion);
 
-        return File(pdf, "application/pdf", $"Certificado-{operacion.NumeroCertificado:D8}.pdf");
+        // El nombre incluye proveedor y período para que el operador pueda
+        // encontrarlo rápido en la carpeta de descargas al adjuntarlo al mail.
+        var proveedor = LimpiarParaNombreDeArchivo(operacion.Proveedor!.RazonSocial);
+        var nombre = $"Certificado-{operacion.NumeroCertificado:D8}-{proveedor}-{operacion.FechaRetencion:yyyy-MM}.pdf";
+
+        return File(pdf, "application/pdf", nombre);
     }
 
     private async Task CargarListas(int clienteId)
@@ -245,5 +250,25 @@ public class OperacionesController : Controller
         ViewBag.Regimenes = new SelectList(
             regimenes.Select(r => new { r.Id, Texto = $"{r.Codigo} - {r.Descripcion}" }),
             "Id", "Texto");
+    }
+        /// <summary>
+    /// Deja la razón social utilizable como nombre de archivo: saca los
+    /// caracteres que Windows no permite, las comas, y cambia los espacios
+    /// por guiones.
+    /// </summary>
+    private static string LimpiarParaNombreDeArchivo(string texto)
+    {
+        var invalidos = System.IO.Path.GetInvalidFileNameChars();
+
+        var limpio = new string(texto.Where(c => !invalidos.Contains(c)).ToArray())
+            .Replace(",", "")
+            .Trim();
+
+        while (limpio.Contains("  "))
+        {
+            limpio = limpio.Replace("  ", " ");
+        }
+
+        return limpio.Replace(' ', '-');
     }
 }
