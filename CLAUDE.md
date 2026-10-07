@@ -149,6 +149,32 @@ Orden de trabajo:
 5. El resto: Clientes, Proveedores, Regímenes, Simulador, SICORE, Detalle, Anular
 6. Panel principal (último: es lo único que requiere consultas nuevas)
 
+Cómo se migra cada pantalla:
+
+- **`docs/prototipo-interfaz.html` es la referencia normativa del diseño.** Cuando algo no
+  coincide, manda el prototipo. `sigere.css` replica sus valores exactos (colores, tamaños
+  de letra, altos de fila, espaciados, radios, pesos) con nombres de clase en español.
+- **El prototipo es la referencia del aspecto, no de los estados de interacción.** Es una
+  imagen estática: no puede mostrar hover, foco, botón presionado ni deshabilitado. Que no
+  aparezcan no es una decisión de diseño. Esos estados se diseñan aparte en `sigere.css`,
+  con los colores de la paleta: resaltado suave de fila en las tablas, hover en botones y
+  campos, foco visible en todos los controles, y botones deshabilitados atenuados que no
+  reaccionan al mouse.
+- **Antes de dar por terminada la migración de una pantalla, compararla contra la pantalla
+  equivalente del prototipo y corregir las diferencias.** El prototipo tiene cinco
+  pantallas: login, panel principal, listado de operaciones, nueva operación y
+  confirmación. Las demás (Clientes, Proveedores, Regímenes, Simulador, SICORE, Detalle,
+  Anular) no tienen diseño propio: se arman con los mismos componentes y se comparan contra
+  la pantalla del prototipo más parecida (un listado contra el de operaciones, un formulario
+  contra el de nueva operación).
+- `wwwroot/css/sigere.css` **convive con Bootstrap** durante el rediseño. Sus clases tienen
+  nombre propio en español (`boton`, `tarjeta`, `tabla`, `campo`...) y ninguna pisa una de
+  Bootstrap, para que las vistas sin migrar sigan funcionando.
+- Al migrar una vista hay que reemplazar **todas** sus clases de Bootstrap, incluida la
+  grilla (`container`, `row`, `col-*`), no sólo botones, tarjetas y tablas. Al terminar el
+  paso 5 se quita Bootstrap del layout; si queda una clase suya en alguna vista, esa
+  pantalla se desarma.
+
 Decisiones de la interfaz que no se negocian:
 
 - La columna y el selector de régimen muestran el **código** (78, 94, 116, 31). "RG 830" es
@@ -162,6 +188,19 @@ Decisiones de la interfaz que no se negocian:
   documentos fiscales no se pueden borrar.
 - Enter avanza al campo siguiente, no envía el formulario (`wwwroot/js/site.js`).
 - Los roles son **Estudio** y **Cliente**, no "Administrador".
+
+### Pendiente: habilitar el rol Cliente (RF-04, RN-17)
+
+Corresponde a los requerimientos **RF-04** y **RN-17** del análisis. Hoy todos los
+controladores tienen `[Authorize(Roles = "Estudio")]`, así que un usuario Cliente sólo puede
+iniciar sesión y ver el Inicio. Por eso el menú lateral oculta al rol Cliente los dos grupos
+(Operación y Administración): mostrar enlaces que devuelven "Acceso denegado" es peor que no
+mostrarlos.
+
+Cuando se implemente, **el filtro por `ClienteId` va en las consultas del servidor**, no
+alcanza con ocultar enlaces en la interfaz. Un enlace oculto no impide escribir la URL a
+mano: cada consulta de operaciones, proveedores, certificados y SICORE tiene que restringirse
+a la empresa del usuario autenticado.
 
 ---
 

@@ -1,68 +1,122 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+@using System.Security.Claims
+@{
+    // Controlador de la página actual, para marcar el ítem del menú que corresponde.
+    var controladorActual = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Activo(string controlador) =>
+        string.Equals(controladorActual, controlador, StringComparison.OrdinalIgnoreCase) ? "activo" : "";
+
+    // Hoy todos los controladores, salvo Home y Cuenta, exigen el rol Estudio. Un usuario
+    // Cliente ve sólo el Inicio: mostrarle enlaces que devuelven "Acceso denegado" es peor
+    // que no mostrarlos. Ver "Pendiente: habilitar el rol Cliente" en CLAUDE.md.
+    var esEstudio = User.IsInRole("Estudio");
+
+    // El usuario no tiene nombre cargado, sólo email: se muestra el email y el avatar
+    // lleva las dos primeras letras de la parte anterior a la arroba.
+    var email = User.FindFirst(ClaimTypes.Email)?.Value ?? "";
+    var iniciales = email.Split('@')[0];
+    iniciales = (iniciales.Length > 2 ? iniciales[..2] : iniciales).ToUpperInvariant();
+}
+<!DOCTYPE html>
+<html lang="es">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - RetencionesRG830.Web</title>
+    <title>@ViewData["Title"] - SIGERE</title>
+    @* Tipografía del prototipo. Si Google Fonts no responde, sigere.css cae en las
+       fuentes del sistema. *@
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+    @* Bootstrap queda mientras dura el rediseño: las vistas sin migrar lo usan.
+       sigere.css va después para que, ante cualquier duda, prevalezca. *@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/RetencionesRG830.Web.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/sigere.css" asp-append-version="true" />
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">RetencionesRG830.Web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                                        <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        @if (User.IsInRole("Estudio"))
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Regimenes" asp-action="Index">Regímenes</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Clientes" asp-action="Index">Clientes</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Proveedores" asp-action="Index">Proveedores</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Simulador" asp-action="Index">Simulador</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Operaciones" asp-action="Index">Operaciones</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Sicore" asp-action="Index">SICORE</a>
-                            </li>
-                        }
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                    </ul>
-                    <partial name="_LoginPartial" />
-                </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+<body class="sigere">
+    @* Íconos del menú, tomados de docs/prototipo-interfaz.html. Se definen una vez
+       y cada ítem los referencia con <use>. *@
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <g id="i-home"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></g>
+            <g id="i-users"><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.5a3 3 0 0 1 0 5.8M17.5 14.8c2.1.6 3.5 2.4 3.5 5.2" /></g>
+            <g id="i-truck"><path d="M3 7h10v9H3zM13 10h4l3 3v3h-7z" /><circle cx="7" cy="18.5" r="1.8" /><circle cx="17" cy="18.5" r="1.8" /></g>
+            <g id="i-book"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z" /><path d="M8 8h7M8 12h7" /></g>
+            <g id="i-file"><path d="M6 3h8l5 5v13H6z" /><path d="M14 3v5h5M9 13h7M9 17h5" /></g>
+            <g id="i-calc"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 12h2M14 12h2M8 16.5h2M14 16.5h2" /></g>
+            <g id="i-upload"><path d="M12 16V5M8 9l4-4 4 4" /><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" /></g>
+            <g id="i-doc"><path d="M6 3h8l5 5v13H6z" /><path d="M14 3v5h5" /></g>
+        </defs>
+    </svg>
+
+    <div class="app">
+        <aside class="barra-lateral">
+            <a class="marca" asp-controller="Home" asp-action="Index">
+                <span class="marca-logo"><svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-doc" /></svg></span>
+                <span>
+                    <span class="marca-nombre">SIGERE</span>
+                    <span class="marca-bajada">RG 830</span>
+                </span>
+            </a>
+
+            <nav class="menu" aria-label="Menú principal">
+                <a class="menu-item @Activo("Home")" asp-controller="Home" asp-action="Index">
+                    <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-home" /></svg>Inicio
+                </a>
+
+                @if (esEstudio)
+                {
+                    <div class="menu-grupo">Operación</div>
+                    <a class="menu-item @Activo("Operaciones")" asp-controller="Operaciones" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-file" /></svg>Operaciones
+                    </a>
+                    <a class="menu-item @Activo("Simulador")" asp-controller="Simulador" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Simulador
+                    </a>
+                    <a class="menu-item @Activo("Sicore")" asp-controller="Sicore" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-upload" /></svg>SICORE
+                    </a>
+
+                    <div class="menu-grupo">Administración</div>
+                    <a class="menu-item @Activo("Clientes")" asp-controller="Clientes" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-users" /></svg>Clientes
+                    </a>
+                    <a class="menu-item @Activo("Proveedores")" asp-controller="Proveedores" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-truck" /></svg>Proveedores
+                    </a>
+                    <a class="menu-item @Activo("Regimenes")" asp-controller="Regimenes" asp-action="Index">
+                        <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-book" /></svg>Regímenes
+                    </a>
+                }
+            </nav>
+        </aside>
+
+        <div class="app-principal">
+            <header class="barra-superior">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="usuario">
+                        <span class="avatar" aria-hidden="true">@iniciales</span>
+                        <div>
+                            <div class="usuario-nombre">@email</div>
+                            <div class="usuario-rol">@User.FindFirst(ClaimTypes.Role)?.Value</div>
+                        </div>
+                    </div>
+                    @* Cerrar sesión va por POST con token antifalsificación, no con un enlace:
+                       un GET podría dispararlo cualquier página externa. *@
+                    <form asp-controller="Cuenta" asp-action="Logout" method="post">
+                        <button type="submit" class="boton boton-neutro boton-chico">Cerrar sesión</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="boton boton-primario boton-chico" asp-controller="Cuenta" asp-action="Login">Iniciar sesión</a>
+                }
+            </header>
+
+            <main class="app-contenido" role="main">
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - RetencionesRG830.Web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-        </div>
-    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
