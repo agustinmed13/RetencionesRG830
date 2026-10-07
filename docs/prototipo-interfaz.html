@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  PROTOTIPO DE INTERFAZ DE SIGERE — REFERENCIA NORMATIVA DE DISENO
+
+  Este archivo no forma parte de la aplicacion. Es la referencia visual aprobada
+  contra la cual se migra cada pantalla.
+
+  Los valores de :root (colores) y las reglas de los componentes de la maqueta
+  (clases .side, .nav, .topbar, .card, .kpi, table, .tag, .ren, .total, .inp)
+  son los valores exactos a replicar en wwwroot/css/sigere.css, traducidos a
+  los nombres de clase en espanol del proyecto.
+
+  Abrir con doble clic en cualquier navegador.
+-->
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body { margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #FAFAF9; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<title>Pantallas de SIGERE</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* Layout: notas editoriales en serif a la izquierda del flujo, maqueta de app
+   a ancho completo dentro de su propio contenedor con scroll horizontal. */
+:root{
+  /* --- cromo de la página (sigue el tema del lector) --- */
+  --bg:#F2F4F7;
+  --surface:#FFFFFF;
+  --surface-2:#E9EDF3;
+  --fg:#16222F;
+  --muted:#5B6B7C;
+  --line:#D8E0EA;
+  --accent:#1668F0;
+  --ok-fg:#1B7A45;
+  --warn-fg:#A8570E;
+
+  /* --- paleta del producto: fija, representa los colores reales de la app --- */
+  --app-navy:#0E2A47;
+  --app-navy-2:#17395C;
+  --app-blue:#1668F0;
+  --app-blue-soft:#E8F0FE;
+  --app-bg:#F4F7FB;
+  --app-card:#FFFFFF;
+  --app-line:#E3E9F2;
+  --app-text:#16222F;
+  --app-muted:#64748B;
+  --app-green-bg:#DFF5E7;
+  --app-green-fg:#17764A;
+  --app-red-bg:#FDE4E4;
+  --app-red-fg:#A32020;
+  --app-amber-bg:#FDF0D9;
+  --app-amber-fg:#8A5A0B;
+
+  --sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111820;
+    --surface:#1A232E;
+    --surface-2:#232E3B;
+    --fg:#E8EDF3;
+    --muted:#9AAABA;
+    --line:#2E3B4A;
+    --accent:#6BA5FF;
+    --ok-fg:#5FCF92;
+    --warn-fg:#E2A94F;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111820;
+  --surface:#1A232E;
+  --surface-2:#232E3B;
+  --fg:#E8EDF3;
+  --muted:#9AAABA;
+  --line:#2E3B4A;
+  --accent:#6BA5FF;
+  --ok-fg:#5FCF92;
+  --warn-fg:#E2A94F;
+  color-scheme:dark;
+}
+
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:40px 64px;}
+h1,h2,h3{text-wrap:balance;margin:0;}
+
+/* ---------- encabezado ---------- */
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.title{font-size:clamp(28px,5vw,44px);font-weight:800;letter-spacing:-.02em;margin-top:10px;}
+.lede{font-family:var(--serif);font-size:18px;line-height:1.6;color:var(--muted);max-width:62ch;margin-top:14px;}
+
+/* ---------- pestañas ---------- */
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:32px;border-bottom:1px solid var(--line);padding-bottom:14px;}
+.tab{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--muted);background:transparent;
+  border:1px solid var(--line);border-radius:999px;padding:8px 15px;cursor:pointer;}
+.tab:hover{color:var(--fg);border-color:var(--muted);}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* ---------- panel ---------- */
+.panel{margin-top:30px;}
+.panel-head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;margin-bottom:18px;}
+.panel-head h2{font-size:22px;font-weight:700;letter-spacing:-.01em;}
+.panel-head .ruta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--muted);}
+
+.scroller{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--app-bg);}
+.shot{min-width:980px;}
+
+/* ---------- notas ---------- */
+.notas{margin-top:22px;display:grid;gap:10px;}
+.nota{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;
+  font-family:var(--serif);font-size:15.5px;line-height:1.55;color:var(--fg);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:13px 16px;}
+.nota b{font-family:var(--sans);font-weight:700;font-size:14px;}
+.marca{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;white-space:nowrap;margin-top:2px;}
+.m-fix{background:color-mix(in srgb,var(--ok-fg) 16%,transparent);color:var(--ok-fg);}
+.m-new{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);}
+.m-out{background:color-mix(in srgb,var(--warn-fg) 18%,transparent);color:var(--warn-fg);}
+
+/* ================= MAQUETA DE LA APP ================= */
+.app{display:flex;font-size:13px;color:var(--app-text);background:var(--app-bg);min-height:620px;}
+.app *{box-sizing:border-box;}
+
+/* barra lateral */
+.side{width:218px;flex:0 0 218px;background:var(--app-navy);color:#fff;padding:0 0 18px;}
+.brand{display:flex;align-items:center;gap:9px;padding:19px 18px 22px;}
+.brand .logo{width:30px;height:30px;border-radius:7px;background:rgba(255,255,255,.14);
+  display:grid;place-items:center;flex:0 0 30px;}
+.brand .nombre{font-size:17px;font-weight:800;letter-spacing:.02em;line-height:1;}
+.brand .sub{font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(255,255,255,.52);margin-top:4px;}
+.nav{display:flex;flex-direction:column;gap:2px;padding:0 11px;}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;
+  color:rgba(255,255,255,.76);text-decoration:none;font-weight:500;font-size:13.5px;}
+.nav a:hover{background:var(--app-navy-2);color:#fff;}
+.nav a.on{background:var(--app-blue);color:#fff;font-weight:600;}
+.nav .grupo{font-size:9.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:rgba(255,255,255,.34);padding:17px 12px 7px;}
+
+/* área principal */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{height:54px;background:var(--app-card);border-bottom:1px solid var(--app-line);
+  display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 22px;}
+.usuario{display:flex;align-items:center;gap:9px;}
+.avatar{width:29px;height:29px;border-radius:50%;background:var(--app-blue-soft);color:var(--app-blue);
+  display:grid;place-items:center;font-size:11px;font-weight:700;}
+.usuario .nom{font-weight:600;font-size:13px;line-height:1.2;}
+.usuario .rol{font-size:11px;color:var(--app-muted);line-height:1.2;}
+.contenido{padding:24px 26px 30px;flex:1;}
+
+.h-pag{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.h-pag h3{font-size:25px;font-weight:800;letter-spacing:-.02em;}
+.miga{font-size:12px;color:var(--app-muted);margin-bottom:5px;}
+.miga span{color:var(--app-blue);}
+
+/* botones */
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:8px;padding:9px 16px;
+  font-family:var(--sans);font-size:13px;font-weight:600;border:1px solid transparent;cursor:default;}
+.btn-pri{background:var(--app-blue);color:#fff;}
+.btn-sec{background:var(--app-card);color:var(--app-blue);border-color:#C3D6F6;}
+.btn-neu{background:var(--app-card);color:var(--app-muted);border-color:var(--app-line);}
+.btn-lg{padding:12px 22px;font-size:14px;}
+
+/* tarjetas */
+.card{background:var(--app-card);border:1px solid var(--app-line);border-radius:11px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+.kpi{padding:15px 16px;}
+.kpi .fila{display:flex;align-items:center;gap:11px;}
+.kpi .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex:0 0 36px;}
+.kpi .et{font-size:12px;color:var(--app-muted);font-weight:500;}
+.kpi .val{font-size:23px;font-weight:800;letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums;}
+.kpi .pie{font-size:11.5px;color:var(--app-muted);margin-top:9px;padding-top:9px;border-top:1px solid var(--app-line);}
+
+.acciones{display:flex;flex-wrap:wrap;gap:11px;padding:14px 16px;margin-bottom:16px;}
+
+/* tablas */
+.tcard{overflow:hidden;}
+.tcab{display:flex;align-items:center;justify-content:space-between;padding:14px 17px;border-bottom:1px solid var(--app-line);}
+.tcab h4{margin:0;font-size:15px;font-weight:700;}
+.tcab .ver{font-size:12.5px;font-weight:600;color:var(--app-blue);}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--app-muted);
+  text-align:left;padding:11px 14px;border-bottom:1px solid var(--app-line);white-space:nowrap;}
+td{padding:11px 14px;border-bottom:1px solid var(--app-line);font-size:12.5px;white-space:nowrap;}
+tr:last-child td{border-bottom:0;}
+.num{text-align:right;font-variant-numeric:tabular-nums;}
+.cert{font-variant-numeric:tabular-nums;font-weight:600;}
+.reg{display:inline-block;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  background:var(--app-blue-soft);color:#1250BE;border-radius:5px;padding:2px 8px;}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px;}
+.t-ok{background:var(--app-green-bg);color:var(--app-green-fg);}
+.t-no{background:var(--app-red-bg);color:var(--app-red-fg);}
+.t-pend{background:var(--app-amber-bg);color:var(--app-amber-fg);}
+.link{color:var(--app-blue);font-weight:600;font-size:12.5px;}
+.tpie{display:flex;align-items:center;justify-content:space-between;padding:12px 17px;font-size:12px;color:var(--app-muted);}
+
+/* filtros */
+.filtros{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:12px;align-items:end;padding:16px 17px;margin-bottom:14px;}
+.campo label{display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px;}
+.inp{display:flex;align-items:center;gap:8px;background:var(--app-card);border:1px solid var(--app-line);
+  border-radius:8px;padding:9px 11px;font-size:12.5px;color:var(--app-muted);min-height:38px;}
+.inp.val{color:var(--app-text);font-weight:500;}
+.inp .flecha{margin-left:auto;color:var(--app-muted);}
+
+/* formulario de operación */
+.dos{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start;}
+.banda{display:flex;align-items:center;gap:10px;background:var(--app-blue-soft);border:1px solid #C9DCFA;
+  border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13.5px;}
+.banda b{font-weight:700;}
+.seccion{padding:17px 18px;border-bottom:1px solid var(--app-line);}
+.seccion:last-of-type{border-bottom:0;}
+.seccion h5{margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:.02em;
+  display:flex;align-items:center;gap:8px;color:var(--app-text);}
+.rejilla{display:grid;gap:13px 14px;}
+.r2{grid-template-columns:1fr 1fr;}
+.r3{grid-template-columns:1fr .7fr 1fr;}
+.req{color:#D13B3B;}
+.ayuda{font-size:11px;color:var(--app-muted);margin-top:5px;}
+.pie-form{display:flex;justify-content:flex-end;gap:10px;padding:15px 18px;background:#FAFCFF;border-top:1px solid var(--app-line);}
+
+/* panel de cálculo */
+.calc{position:sticky;top:0;}
+.calc h5{margin:0;padding:15px 17px;font-size:13.5px;font-weight:700;border-bottom:1px solid var(--app-line);
+  display:flex;align-items:center;gap:8px;}
+.ren{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 17px;font-size:12.5px;}
+.ren .et{color:var(--app-muted);}
+.ren .vl{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ren.resta .vl{color:#B04A2E;}
+.ren.sep{border-top:1px solid var(--app-line);margin-top:4px;padding-top:12px;}
+.total{margin:12px 13px 14px;background:var(--app-green-bg);border:1px solid #BBE4CC;border-radius:9px;padding:13px 15px;}
+.total .et{font-size:12px;font-weight:700;color:var(--app-green-fg);}
+.total .vl{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--app-green-fg);
+  font-variant-numeric:tabular-nums;margin-top:3px;}
+.aviso{display:flex;gap:9px;margin:0 13px 14px;background:var(--app-blue-soft);border-radius:9px;
+  padding:11px 13px;font-size:11.5px;line-height:1.5;color:#1A4B9E;}
+
+/* confirmación */
+.cinta{display:flex;align-items:center;gap:11px;background:var(--app-amber-bg);border:1px solid #F0D9A8;
+  border-radius:10px;padding:13px 16px;margin-bottom:16px;font-size:13px;color:var(--app-amber-fg);}
+.resumen{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.dato{padding:12px 18px;border-bottom:1px solid var(--app-line);}
+.dato .et{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--app-muted);}
+.dato .vl{font-size:13.5px;font-weight:600;margin-top:3px;}
+.desglose{padding:4px 0 10px;}
+.dren{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:9px 18px;font-size:13px;}
+.dren .et{color:var(--app-muted);}
+.dren .vl{font-weight:600;font-variant-numeric:tabular-nums;}
+.dren.fuerte{background:var(--app-green-bg);margin:8px 0 0;padding:14px 18px;}
+.dren.fuerte .et{color:var(--app-green-fg);font-weight:700;}
+.dren.fuerte .vl{color:var(--app-green-fg);font-size:19px;font-weight:800;}
+
+/* login */
+.login{display:grid;grid-template-columns:5fr 6fr;min-height:620px;}
+.login-marca{background:linear-gradient(160deg,#0E2A47 0%,#143A60 100%);color:#fff;padding:46px 42px;
+  display:flex;flex-direction:column;justify-content:center;gap:34px;}
+.login-marca .nombre{font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1;}
+.login-marca .bajo{font-size:15px;color:rgba(255,255,255,.72);margin-top:12px;line-height:1.5;max-width:30ch;}
+.rasgos{display:grid;gap:19px;}
+.rasgo{display:flex;gap:14px;align-items:flex-start;}
+.rasgo .ic{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.12);
+  display:grid;place-items:center;flex:0 0 38px;}
+.rasgo .tt{font-size:14px;font-weight:700;}
+.rasgo .dd{font-size:12.5px;color:rgba(255,255,255,.64);margin-top:3px;line-height:1.5;max-width:34ch;}
+.login-form{background:var(--app-bg);display:grid;place-items:center;padding:40px 36px;}
+.login-caja{background:var(--app-card);border:1px solid var(--app-line);border-radius:14px;
+  padding:34px 32px;width:100%;max-width:400px;}
+.login-caja h4{margin:0;font-size:27px;font-weight:800;letter-spacing:-.02em;}
+.login-caja .p{font-size:13px;color:var(--app-muted);margin-top:7px;}
+.login-campo{margin-top:19px;}
+.login-campo label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;}
+.login-pie{margin-top:22px;padding-top:16px;border-top:1px solid var(--app-line);
+  display:flex;align-items:center;justify-content:center;gap:8px;font-size:11.5px;color:var(--app-muted);}
+
+@media (max-width:640px){
+  .wrap{padding-block:28px 48px;}
+  .nota{grid-template-columns:1fr;gap:7px;}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="i-home"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></g>
+<g id="i-users"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.8M17.5 14.8c2.1.6 3.5 2.4 3.5 5.2"/></g>
+<g id="i-truck"><path d="M3 7h10v9H3zM13 10h4l3 3v3h-7z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17" cy="18.5" r="1.8"/></g>
+<g id="i-book"><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2z"/><path d="M8 8h7M8 12h7"/></g>
+<g id="i-file"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></g>
+<g id="i-calc"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h2M14 12h2M8 16.5h2M14 16.5h2"/></g>
+<g id="i-upload"><path d="M12 16V5M8 9l4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></g>
+<g id="i-db"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></g>
+<g id="i-mail"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></g>
+<g id="i-lock"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></g>
+<g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+<g id="i-eye"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12"/><circle cx="12" cy="12" r="2.6"/></g>
+<g id="i-filter"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></g>
+<g id="i-chev"><path d="m6 9 6 6 6-6"/></g>
+<g id="i-cal"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g>
+<g id="i-check"><path d="m5 12.5 5 5 9-11"/></g>
+<g id="i-alert"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.2v.3"/></g>
+<g id="i-info"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8v.3"/></g>
+<g id="i-doc"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/></g>
+<g id="i-pdf"><path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 14h6M9 17.5h4"/></g>
+</defs></svg>
+
+<div class="wrap">
+
+  <p class="eyebrow">Prototipo de interfaz</p>
+  <h1 class="title">Pantallas de SIGERE</h1>
+  <p class="lede">Las cuatro pantallas del borrador, con los errores corregidos, más la pantalla de confirmación
+    que faltaba. Los colores, la tipografía y los componentes de esta página son los mismos que va a usar
+    la hoja de estilos del proyecto. Todos los datos son ficticios.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-p="login">Iniciar sesión</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="inicio">Panel principal</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="lista">Operaciones</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="nueva">Nueva operación</button>
+    <button class="tab" role="tab" aria-selected="false" data-p="confirmar">Confirmación</button>
+  </div>
+
+  <!-- ====================== LOGIN ====================== -->
+  <section class="panel" id="p-login" role="tabpanel">
+    <div class="panel-head">
+      <h2>Iniciar sesión</h2>
+      <span class="ruta">Views/Cuenta/Login.cshtml</span>
+    </div>
+    <div class="scroller"><div class="shot">
+      <div class="login">
+        <div class="login-marca">
+          <div>
+            <div class="nombre">SIGERE</div>
+            <p class="bajo">Sistema de gestión de retenciones del Impuesto a las Ganancias.
+              Régimen de la RG 830.</p>
+          </div>
+          <div class="rasgos">
+            <div class="rasgo">
+              <span class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg></span>
+              <div><div class="tt">Acumulado automático</div>
+                <div class="dd">El sistema busca las operaciones anteriores del mes y aplica el piso una sola vez.</div></div>
+            </div>
+            <div class="rasgo">
+              <span class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-pdf"/></svg></span>
+              <div><div class="tt">Certificados numerados</div>
+                <div class="dd">Numeración correlativa asignada por el sistema, sin saltos ni repeticiones.</div></div>
+            </div>
+            <div class="rasgo">
+              <span class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></span>
+              <div><div class="tt">Exportación para SICORE</div>
+                <div class="dd">Archivo de 145 posiciones, con formato numérico independiente del equipo.</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="login-form">
+          <div class="login-caja">
+            <h4>Iniciar sesión</h4>
+            <p class="p">Ingresá tus datos para acceder al sistema.</p>
+            <div class="login-campo">
+              <label for="m-mail">Correo electrónico</label>
+              <div class="inp val"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-mail"/></svg>
+                <span id="m-mail">operador@metalurgicadelvalle.com</span></div>
+            </div>
+            <div class="login-campo">
+              <label for="m-pass">Contraseña</label>
+              <div class="inp"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lock"/></svg>
+                <span id="m-pass">••••••••••</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-eye"/></svg></div>
+            </div>
+            <div style="margin-top:22px"><span class="btn btn-pri btn-lg" style="width:100%;justify-content:center">Ingresar</span></div>
+            <div class="login-pie">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-lock"/></svg>
+              Acceso para el estudio contable y sus clientes
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notas">
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>El nombre.</b> Decía «Retenciones RG 830», que es la norma. Ahora dice SIGERE, y la RG 830 pasa a la bajada, donde corresponde.</div></div>
+      <div class="nota"><span class="marca m-out">Quitado</span><div><b>«Recordarme» y «¿Olvidaste tu contraseña?».</b> La recuperación por correo es un sistema aparte: tokens, vencimiento y envío de mail. Un enlace que no funciona es peor que no tenerlo.</div></div>
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>Los tres rasgos de la izquierda.</b> Ahora nombran lo que el sistema realmente resuelve y que la planilla no: el acumulado mensual, la correlatividad y el formato numérico del archivo.</div></div>
+    </div>
+  </section>
+
+  <!-- ====================== INICIO ====================== -->
+  <section class="panel" id="p-inicio" role="tabpanel" hidden>
+    <div class="panel-head">
+      <h2>Panel principal</h2>
+      <span class="ruta">Views/Home/Index.cshtml</span>
+    </div>
+    <div class="scroller"><div class="shot">
+      <div class="app">
+        <aside class="side">
+          <div class="brand">
+            <span class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-doc"/></svg></span>
+            <div><div class="nombre">SIGERE</div><div class="sub">RG 830</div></div>
+          </div>
+          <nav class="nav">
+            <a href="#" class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-home"/></svg>Inicio</a>
+            <div class="grupo">Operación</div>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg>Operaciones</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Simulador</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg>SICORE</a>
+            <div class="grupo">Administración</div>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>Clientes</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Proveedores</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-book"/></svg>Regímenes</a>
+          </nav>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="usuario">
+              <span class="avatar">DM</span>
+              <div><div class="nom">Daniel Medina</div><div class="rol">Estudio</div></div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-chev"/></svg>
+            </div>
+          </div>
+          <div class="contenido">
+            <div class="h-pag">
+              <h3>Panel principal</h3>
+              <span class="inp val" style="width:190px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-cal"/></svg>Septiembre 2026<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></span>
+            </div>
+
+            <div class="kpis">
+              <div class="card kpi">
+                <div class="fila"><span class="ic" style="background:var(--app-blue-soft)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1250BE" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg></span>
+                  <div><div class="et">Operaciones del período</div><div class="val">34</div></div></div>
+                <div class="pie">2 anuladas, no se informan</div>
+              </div>
+              <div class="card kpi">
+                <div class="fila"><span class="ic" style="background:var(--app-green-bg)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#17764A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-db"/></svg></span>
+                  <div><div class="et">Retenido en el período</div><div class="val">$&nbsp;1.284.730</div></div></div>
+                <div class="pie">Sobre 12 proveedores</div>
+              </div>
+              <div class="card kpi">
+                <div class="fila"><span class="ic" style="background:var(--app-amber-bg)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#8A5A0B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></span>
+                  <div><div class="et">Sin exportar a SICORE</div><div class="val">34</div></div></div>
+                <div class="pie">Vence el 14/10</div>
+              </div>
+              <div class="card kpi">
+                <div class="fila"><span class="ic" style="background:#EDE9FE"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#5B3FBF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg></span>
+                  <div><div class="et">Clientes activos</div><div class="val">6</div></div></div>
+                <div class="pie">41 proveedores cargados</div>
+              </div>
+            </div>
+
+            <div class="card acciones">
+              <span class="btn btn-pri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nueva operación</span>
+              <span class="btn btn-sec"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Nuevo proveedor</span>
+              <span class="btn btn-sec"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg>Exportar SICORE</span>
+            </div>
+
+            <div class="card tcard">
+              <div class="tcab"><h4>Últimas operaciones</h4><span class="ver">Ver todas ›</span></div>
+              <table>
+                <thead><tr>
+                  <th>Cert. N°</th><th>Cliente</th><th>Proveedor</th><th>Rég.</th>
+                  <th>Fecha ret.</th><th class="num">Retenido</th><th>Estado</th>
+                </tr></thead>
+                <tbody>
+                  <tr><td class="cert">00000041</td><td>Metalúrgica del Valle S.A.</td><td>Gómez, Carlos Alberto</td><td><span class="reg">78</span></td><td>22/09/2026</td><td class="num">$ 24.000,00</td><td><span class="tag t-ok">Vigente</span></td></tr>
+                  <tr><td class="cert">00000040</td><td>Metalúrgica del Valle S.A.</td><td>Servicios del Sur S.H.</td><td><span class="reg">94</span></td><td>21/09/2026</td><td class="num">$ 8.412,60</td><td><span class="tag t-ok">Vigente</span></td></tr>
+                  <tr><td class="cert">00000039</td><td>Agroinsumos del Norte S.R.L.</td><td>Ramírez, Laura Beatriz</td><td><span class="reg">116</span></td><td>18/09/2026</td><td class="num">$ 62.145,30</td><td><span class="tag t-ok">Vigente</span></td></tr>
+                  <tr><td class="cert">00000038</td><td>Metalúrgica del Valle S.A.</td><td>Sosa, Marta Elena</td><td><span class="reg">94</span></td><td>16/09/2026</td><td class="num">$ 0,00</td><td><span class="tag t-no">Anulada</span></td></tr>
+                  <tr><td class="cert">00000037</td><td>Transporte Yacuy S.A.</td><td>Gómez, Carlos Alberto</td><td><span class="reg">78</span></td><td>15/09/2026</td><td class="num">$ 11.520,00</td><td><span class="tag t-ok">Vigente</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notas">
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>Los cuatro números.</b> El borrador mostraba «+12&nbsp;% vs. mes anterior», que a un estudio contable no le dice nada. Estos cuatro responden a lo que de verdad se pregunta antes de un vencimiento: cuántas operaciones hay, cuánto se retuvo, cuántas faltan exportar y cuándo vence.</div></div>
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>La columna Régimen.</b> Antes decía «RG 830» en todas las filas. Ahora muestra el código —78, 94, 116— que es lo que determina la alícuota y el piso.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>El menú agrupado.</b> Lo operativo arriba, la administración abajo. El usuario con rol Cliente no ve el segundo grupo.</div></div>
+      <div class="nota"><span class="marca m-out">Pendiente</span><div><b>Esta pantalla no existe todavía.</b> Es la única que necesita consultas nuevas. La dejamos para el final, después de convertir las que ya funcionan.</div></div>
+    </div>
+  </section>
+
+  <!-- ====================== LISTADO ====================== -->
+  <section class="panel" id="p-lista" role="tabpanel" hidden>
+    <div class="panel-head">
+      <h2>Operaciones</h2>
+      <span class="ruta">Views/Operaciones/Index.cshtml</span>
+    </div>
+    <div class="scroller"><div class="shot">
+      <div class="app">
+        <aside class="side">
+          <div class="brand">
+            <span class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-doc"/></svg></span>
+            <div><div class="nombre">SIGERE</div><div class="sub">RG 830</div></div>
+          </div>
+          <nav class="nav">
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-home"/></svg>Inicio</a>
+            <div class="grupo">Operación</div>
+            <a href="#" class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg>Operaciones</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Simulador</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg>SICORE</a>
+            <div class="grupo">Administración</div>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>Clientes</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Proveedores</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-book"/></svg>Regímenes</a>
+          </nav>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="usuario">
+              <span class="avatar">DM</span>
+              <div><div class="nom">Daniel Medina</div><div class="rol">Estudio</div></div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-chev"/></svg>
+            </div>
+          </div>
+          <div class="contenido">
+            <div class="h-pag">
+              <h3>Operaciones</h3>
+              <span class="btn btn-pri"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus"/></svg>Nueva operación</span>
+            </div>
+
+            <div class="card filtros">
+              <div class="campo"><label for="f-cli">Cliente</label>
+                <div class="inp val" id="f-cli">Metalúrgica del Valle S.A.<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></div></div>
+              <div class="campo"><label for="f-est">Estado</label>
+                <div class="inp val" id="f-est">Todas<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></div></div>
+              <div class="campo"><label for="f-des">Desde</label>
+                <div class="inp val" id="f-des">01/09/2026</div></div>
+              <div class="campo"><label for="f-has">Hasta</label>
+                <div class="inp val" id="f-has">30/09/2026</div></div>
+              <span class="btn btn-pri"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-filter"/></svg>Filtrar</span>
+            </div>
+
+            <div class="card tcard">
+              <table>
+                <thead><tr>
+                  <th>Cert. N°</th><th>Proveedor</th><th>Rég.</th><th>Comprobante</th>
+                  <th>Fecha ret.</th><th class="num">Base acumulada</th><th class="num">Retenido</th>
+                  <th>Estado</th><th></th>
+                </tr></thead>
+                <tbody>
+                  <tr><td class="cert">00000041</td><td>Gómez, Carlos Alberto</td><td><span class="reg">78</span></td><td>FC A 0003-00012847</td><td>22/09/2026</td><td class="num">$ 2.000.000,00</td><td class="num">$ 24.000,00</td><td><span class="tag t-ok">Vigente</span></td><td><span class="link">Ver detalle</span></td></tr>
+                  <tr><td class="cert">00000040</td><td>Servicios del Sur S.H.</td><td><span class="reg">94</span></td><td>FC B 0001-00000934</td><td>21/09/2026</td><td class="num">$ 467.366,67</td><td class="num">$ 8.412,60</td><td><span class="tag t-ok">Vigente</span></td><td><span class="link">Ver detalle</span></td></tr>
+                  <tr><td class="cert">00000038</td><td>Sosa, Marta Elena</td><td><span class="reg">94</span></td><td>FC C 0002-00000118</td><td>16/09/2026</td><td class="num">$ 312.400,00</td><td class="num">$ 0,00</td><td><span class="tag t-no">Anulada</span></td><td><span class="link">Ver detalle</span></td></tr>
+                  <tr><td class="cert">00000036</td><td>Gómez, Carlos Alberto</td><td><span class="reg">78</span></td><td>FC A 0003-00012802</td><td>09/09/2026</td><td class="num">$ 800.000,00</td><td class="num">$ 11.520,00</td><td><span class="tag t-ok">Vigente</span></td><td><span class="link">Ver detalle</span></td></tr>
+                  <tr><td class="cert">00000035</td><td>Ramírez, Laura Beatriz</td><td><span class="reg">116</span></td><td>RE 0001-00000207</td><td>04/09/2026</td><td class="num">$ 1.450.000,00</td><td class="num">$ 203.287,50</td><td><span class="tag t-ok">Vigente</span></td><td><span class="link">Ver detalle</span></td></tr>
+                </tbody>
+              </table>
+              <div class="tpie"><span>5 operaciones · 1 anulada</span><span>Total retenido del filtro: <b style="color:var(--app-text);font-variant-numeric:tabular-nums">$ 247.220,10</b></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notas">
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>Cliente y proveedor estaban cruzados.</b> En el borrador, «Metalúrgica del Valle» aparecía como proveedor de un proveedor. Acá el listado ya está filtrado por un cliente, así que la columna Cliente desaparece y queda el proveedor, que es lo que se busca.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>Columna Base acumulada.</b> Es el importe que se informa en SICORE y el que explica por qué la retención dio lo que dio. Sin esa columna hay que entrar al detalle de cada fila para entender el número.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>Total retenido al pie.</b> Es el control que hoy el estudio hace a mano antes de presentar.</div></div>
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>Los nombres son los ficticios</b> del repositorio, no los proveedores reales del estudio.</div></div>
+    </div>
+  </section>
+
+  <!-- ====================== NUEVA ====================== -->
+  <section class="panel" id="p-nueva" role="tabpanel" hidden>
+    <div class="panel-head">
+      <h2>Nueva operación</h2>
+      <span class="ruta">Views/Operaciones/Create.cshtml</span>
+    </div>
+    <div class="scroller"><div class="shot">
+      <div class="app">
+        <aside class="side">
+          <div class="brand">
+            <span class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-doc"/></svg></span>
+            <div><div class="nombre">SIGERE</div><div class="sub">RG 830</div></div>
+          </div>
+          <nav class="nav">
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-home"/></svg>Inicio</a>
+            <div class="grupo">Operación</div>
+            <a href="#" class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg>Operaciones</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Simulador</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg>SICORE</a>
+            <div class="grupo">Administración</div>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>Clientes</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Proveedores</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-book"/></svg>Regímenes</a>
+          </nav>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="usuario">
+              <span class="avatar">DM</span>
+              <div><div class="nom">Daniel Medina</div><div class="rol">Estudio</div></div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-chev"/></svg>
+            </div>
+          </div>
+          <div class="contenido">
+            <div class="miga">Operaciones / <span>Nueva operación</span></div>
+            <div class="h-pag"><h3>Nueva operación</h3></div>
+
+            <div class="banda">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1250BE" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>
+              Agente de retención: <b>Metalúrgica del Valle S.A.</b> · CUIT 30-61234567-4
+            </div>
+
+            <div class="dos">
+              <div class="card">
+                <div class="seccion">
+                  <h5><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--app-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Proveedor y régimen</h5>
+                  <div class="rejilla r2">
+                    <div><label for="n-prov" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Proveedor <span class="req">*</span></label>
+                      <div class="inp val" id="n-prov">Gómez, Carlos Alberto<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></div>
+                      <div class="ayuda">20-31456789-8 · Inscripto en Ganancias · Persona humana</div></div>
+                    <div><label for="n-reg" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Régimen <span class="req">*</span></label>
+                      <div class="inp val" id="n-reg">78 — Enajenación de bienes muebles<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></div>
+                      <div class="ayuda">Alícuota 2,00 % · Tasa fija</div></div>
+                  </div>
+                </div>
+
+                <div class="seccion">
+                  <h5><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--app-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-doc"/></svg>Comprobante</h5>
+                  <div class="rejilla r3" style="margin-bottom:13px">
+                    <div><label for="n-tipo" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Tipo <span class="req">*</span></label>
+                      <div class="inp val" id="n-tipo">Factura A<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="flecha"><use href="#i-chev"/></svg></div></div>
+                    <div><label for="n-pv" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Pto. venta <span class="req">*</span></label>
+                      <div class="inp val" id="n-pv">0003</div></div>
+                    <div><label for="n-num" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Número <span class="req">*</span></label>
+                      <div class="inp val" id="n-num">00012847</div></div>
+                  </div>
+                  <div class="rejilla r2">
+                    <div><label for="n-fc" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Fecha del comprobante <span class="req">*</span></label>
+                      <div class="inp val" id="n-fc">18/09/2026</div></div>
+                    <div><label for="n-fr" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Fecha de la retención <span class="req">*</span></label>
+                      <div class="inp val" id="n-fr">22/09/2026</div>
+                      <div class="ayuda">Define el mes del acumulado y el período de SICORE.</div></div>
+                  </div>
+                </div>
+
+                <div class="seccion">
+                  <h5><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--app-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Importes</h5>
+                  <div class="rejilla r2">
+                    <div><label for="n-tot" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Importe total <span class="req">*</span></label>
+                      <div class="inp val" id="n-tot">1.452.000,00</div></div>
+                    <div><label for="n-gra" style="display:block;font-size:11.5px;font-weight:600;color:var(--app-muted);margin-bottom:5px">Importe gravado <span class="req">*</span></label>
+                      <div class="inp val" id="n-gra">1.200.000,00</div>
+                      <div class="ayuda">No puede superar el importe total.</div></div>
+                  </div>
+                </div>
+
+                <div class="pie-form">
+                  <span class="btn btn-neu">Cancelar</span>
+                  <span class="btn btn-pri">Revisar cálculo</span>
+                </div>
+              </div>
+
+              <div class="card calc">
+                <h5><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--app-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Cálculo de la retención</h5>
+                <div style="padding:8px 0 4px">
+                  <div class="ren"><span class="et">Operaciones anteriores del mes</span><span class="vl">$ 800.000,00</span></div>
+                  <div class="ren"><span class="et">Base acumulada del mes</span><span class="vl">$ 2.000.000,00</span></div>
+                  <div class="ren resta"><span class="et">Monto no sujeto a retención</span><span class="vl">−$ 224.000,00</span></div>
+                  <div class="ren sep"><span class="et">Neto sujeto a retención</span><span class="vl">$ 1.776.000,00</span></div>
+                  <div class="ren"><span class="et">Alícuota aplicada</span><span class="vl">2,00 %</span></div>
+                  <div class="ren"><span class="et">Retención determinada</span><span class="vl">$ 35.520,00</span></div>
+                  <div class="ren resta"><span class="et">Retenciones anteriores del mes</span><span class="vl">−$ 11.520,00</span></div>
+                </div>
+                <div class="total"><div class="et">Retención a practicar</div><div class="vl">$ 24.000,00</div></div>
+                <div class="aviso">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 15px;margin-top:1px"><use href="#i-info"/></svg>
+                  El cálculo se actualiza a medida que cargás. Todavía no se guardó nada: la operación se registra en el paso siguiente.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notas">
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>El desglose tenía tres renglones; ahora tiene siete.</b> En el mismo orden que la hoja Cálculo de la planilla, para que el operador pueda contrastar los dos resultados durante la transición. Es lo que permite decir que el sistema no es una caja negra.</div></div>
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>El régimen.</b> El desplegable decía «RG 830 - Retenciones y percepciones». Ahora ofrece los códigos reales, y debajo muestra la alícuota y el tipo de cálculo que se van a aplicar.</div></div>
+      <div class="nota"><span class="marca m-fix">Corregido</span><div><b>El botón dice «Revisar cálculo», no «Calcular retención».</b> Nombra lo que realmente pasa: lleva a la pantalla de confirmación, no guarda.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>Los números del ejemplo cierran.</b> 2.000.000 − 224.000 = 1.776.000; por 2&nbsp;% da 35.520; menos los 11.520 ya retenidos quedan 24.000. Es el caso que demuestra el acumulado mensual, que es lo que la planilla no resuelve.</div></div>
+    </div>
+  </section>
+
+  <!-- ====================== CONFIRMAR ====================== -->
+  <section class="panel" id="p-confirmar" role="tabpanel" hidden>
+    <div class="panel-head">
+      <h2>Confirmación</h2>
+      <span class="ruta">Views/Operaciones/Confirmar.cshtml</span>
+    </div>
+    <div class="scroller"><div class="shot">
+      <div class="app">
+        <aside class="side">
+          <div class="brand">
+            <span class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-doc"/></svg></span>
+            <div><div class="nombre">SIGERE</div><div class="sub">RG 830</div></div>
+          </div>
+          <nav class="nav">
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-home"/></svg>Inicio</a>
+            <div class="grupo">Operación</div>
+            <a href="#" class="on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-file"/></svg>Operaciones</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-calc"/></svg>Simulador</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg>SICORE</a>
+            <div class="grupo">Administración</div>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-users"/></svg>Clientes</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-truck"/></svg>Proveedores</a>
+            <a href="#"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-book"/></svg>Regímenes</a>
+          </nav>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <div class="usuario">
+              <span class="avatar">DM</span>
+              <div><div class="nom">Daniel Medina</div><div class="rol">Estudio</div></div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--app-muted)"><use href="#i-chev"/></svg>
+            </div>
+          </div>
+          <div class="contenido">
+            <div class="miga">Operaciones / Nueva operación / <span>Confirmar</span></div>
+            <div class="h-pag"><h3>Revisá antes de registrar</h3></div>
+
+            <div class="cinta">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 18px"><use href="#i-alert"/></svg>
+              Todavía no se guardó nada. Al confirmar se asigna el número de certificado y la operación ya no se puede modificar, sólo anular.
+            </div>
+
+            <div class="dos">
+              <div class="card">
+                <div class="resumen">
+                  <div class="dato"><div class="et">Agente de retención</div><div class="vl">Metalúrgica del Valle S.A.</div></div>
+                  <div class="dato"><div class="et">Proveedor</div><div class="vl">Gómez, Carlos Alberto</div></div>
+                  <div class="dato"><div class="et">CUIT del proveedor</div><div class="vl">20-31456789-8</div></div>
+                  <div class="dato"><div class="et">Condición</div><div class="vl">Inscripto · Persona humana</div></div>
+                  <div class="dato"><div class="et">Comprobante</div><div class="vl">Factura A 0003-00012847</div></div>
+                  <div class="dato"><div class="et">Régimen</div><div class="vl"><span class="reg">78</span> Enajenación de bienes muebles</div></div>
+                  <div class="dato"><div class="et">Fecha del comprobante</div><div class="vl">18/09/2026</div></div>
+                  <div class="dato"><div class="et">Fecha de la retención</div><div class="vl">22/09/2026</div></div>
+                  <div class="dato"><div class="et">Importe total</div><div class="vl" style="font-variant-numeric:tabular-nums">$ 1.452.000,00</div></div>
+                  <div class="dato"><div class="et">Importe gravado</div><div class="vl" style="font-variant-numeric:tabular-nums">$ 1.200.000,00</div></div>
+                </div>
+                <div class="desglose">
+                  <div class="dren" style="padding-top:14px"><span class="et">Base acumulada del mes</span><span class="vl">$ 2.000.000,00</span></div>
+                  <div class="dren"><span class="et">Monto no sujeto a retención</span><span class="vl">−$ 224.000,00</span></div>
+                  <div class="dren"><span class="et">Neto sujeto a retención</span><span class="vl">$ 1.776.000,00</span></div>
+                  <div class="dren"><span class="et">Alícuota aplicada</span><span class="vl">2,00 %</span></div>
+                  <div class="dren"><span class="et">Retención determinada</span><span class="vl">$ 35.520,00</span></div>
+                  <div class="dren"><span class="et">Retenciones anteriores del mes</span><span class="vl">−$ 11.520,00</span></div>
+                  <div class="dren fuerte"><span class="et">Retención a practicar</span><span class="vl">$ 24.000,00</span></div>
+                </div>
+                <div class="pie-form">
+                  <span class="btn btn-neu">Corregir datos</span>
+                  <span class="btn btn-pri btn-lg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Confirmar y emitir certificado</span>
+                </div>
+              </div>
+
+              <div class="card calc">
+                <h5><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--app-blue)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-info"/></svg>Qué pasa al confirmar</h5>
+                <div style="padding:12px 17px 4px;font-size:12.5px;line-height:1.6;color:var(--app-muted)">
+                  <p style="margin:0 0 11px">Se asigna el certificado <b style="color:var(--app-text);font-variant-numeric:tabular-nums">N° 00000042</b>, el siguiente correlativo de este agente de retención.</p>
+                  <p style="margin:0 0 11px">La operación pasa a integrar el acumulado mensual de Gómez, Carlos Alberto en el régimen 78.</p>
+                  <p style="margin:0 0 11px">Se informa en el archivo para SICORE del período 09/2026.</p>
+                  <p style="margin:0 0 14px">Queda registrado que la cargó Daniel Medina el 22/09/2026.</p>
+                </div>
+                <div class="aviso" style="background:var(--app-amber-bg);color:var(--app-amber-fg)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 15px;margin-top:1px"><use href="#i-alert"/></svg>
+                  Una operación registrada no se borra. Si tiene un error, se anula indicando el motivo y conserva su número de certificado.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notas">
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>Esta pantalla no estaba en el borrador.</b> Es el paso que agregaste después de descubrir que un Enter sin querer dejaba la operación registrada, y que los documentos fiscales no se pueden borrar. Sin ella, el diseño rompería una decisión que tomaste a propósito.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>El panel «Qué pasa al confirmar».</b> Dice con todas las letras qué es irreversible: el número de certificado que se consume, el acumulado que cambia, el período en que se informa y quién queda como responsable.</div></div>
+      <div class="nota"><span class="marca m-new">Nuevo</span><div><b>«Corregir datos» vuelve al formulario con todo cargado.</b> Ya funciona así en el sistema: es la acción Corregir del controlador.</div></div>
+    </div>
+  </section>
+
+  <p style="margin-top:46px;padding-top:22px;border-top:1px solid var(--line);font-family:var(--serif);
+            font-size:15px;line-height:1.6;color:var(--muted);max-width:68ch">
+    Faltan por convertir siete pantallas más: Clientes, Proveedores, Regímenes, Simulador, SICORE, Detalle
+    de operación y Anular. No necesitan diseño nuevo: una vez que el esqueleto y la hoja de estilos estén en
+    el proyecto, heredan este aspecto con los mismos componentes que ya aparecen acá.
+  </p>
+</div>
+
+<script>
+(function(){
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  function mostrar(id){
+    tabs.forEach(function(t){
+      var activo = t.dataset.p === id;
+      t.setAttribute('aria-selected', activo ? 'true' : 'false');
+      var panel = document.getElementById('p-' + t.dataset.p);
+      if (panel) panel.hidden = !activo;
+    });
+  }
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ mostrar(t.dataset.p); });
+  });
+})();
+</script>
+
+</body>
+</html>
