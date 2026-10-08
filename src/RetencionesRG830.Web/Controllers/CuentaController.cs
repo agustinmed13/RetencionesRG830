@@ -25,13 +25,13 @@ public class CuentaController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string email, string password)
+    public async Task<IActionResult> Login(string email, string password, string? returnUrl)
     {
         var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == email);
 
         if (usuario == null || !PasswordHasher.Verificar(password, usuario.PasswordHash))
         {
-            ModelState.AddModelError(string.Empty, "Email o contraseña incorrectos.");
+            ModelState.AddModelError(string.Empty, "Correo o contraseña incorrectos.");
             return View();
         }
 
@@ -54,7 +54,22 @@ public class CuentaController : Controller
 
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
-        return RedirectToAction("Index", "Regimenes");
+        // ReturnUrl es la página que el usuario intentó abrir sin sesión: el middleware
+        // de autenticación lo agrega al mandarlo al login, y el formulario lo conserva
+        // porque se envía a la misma URL. Sólo se usa si es una dirección de este mismo
+        // sitio. Sin esa comprobación habría una redirección abierta: un enlace a
+        // /Cuenta/Login?ReturnUrl=https://sitio-falso.com dejaría a quien ingresa con sus
+        // credenciales reales en una página del atacante. IsLocalUrl también rechaza
+        // las formas disfrazadas, como "//sitio-falso.com" o "/\sitio-falso.com".
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+        {
+            return LocalRedirect(returnUrl);
+        }
+
+        // Destino por defecto: Inicio. Es la única página, además del login, que no exige
+        // rol, así que sirve para Estudio y para Cliente. Antes iba a Regímenes, que exige
+        // rol Estudio, y un usuario Cliente caía en "Acceso denegado" al entrar.
+        return RedirectToAction("Index", "Home");
     }
 
     [HttpPost]

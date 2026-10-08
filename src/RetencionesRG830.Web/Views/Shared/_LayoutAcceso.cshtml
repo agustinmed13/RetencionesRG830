@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+@* Layout de las pantallas para quien todavía no inició sesión (hoy, sólo el login).
+   No tiene barra lateral ni barra superior: mostrar el menú o un botón "Iniciar
+   sesión" a alguien que está justamente en el login no tiene sentido.
+   No carga Bootstrap: el login es la primera pantalla migrada por completo. *@
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - SIGERE</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="~/css/sigere.css" asp-append-version="true" />
+</head>
+<body class="sigere">
+    @RenderBody()
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

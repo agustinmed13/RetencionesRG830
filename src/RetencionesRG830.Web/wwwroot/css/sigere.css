@@ -187,6 +187,14 @@ body.sigere {
     margin: 0;
 }
 
+/* Línea descriptiva bajo el título de la página. El margen negativo la
+   acerca al título, que trae 18px de margen inferior. */
+.subtitulo-pagina {
+    margin: -12px 0 18px;
+    font-size: 13.5px;
+    color: var(--color-texto-atenuado);
+}
+
 
 /* -------------------------------------------------------------------------
    4. Barra lateral
@@ -530,6 +538,12 @@ a.boton[aria-disabled="true"] {
 
 .tarjeta-cuerpo {
     padding: 17px 18px;
+}
+
+/* El último elemento del cuerpo no suma su margen inferior al padding:
+   si no, un párrafo termina con más aire abajo que arriba. */
+.tarjeta-cuerpo > :last-child {
+    margin-bottom: 0;
 }
 
 /* Una tarjeta de formulario se divide en secciones con su título. */
@@ -1183,7 +1197,231 @@ select.campo-control {
 
 
 /* -------------------------------------------------------------------------
-   17. Utilidades
+   17. Pantalla de acceso (login)
+   Usa su propio layout (_LayoutAcceso.cshtml): sin menú ni barra superior.
+   Panel de marca a la izquierda, formulario a la derecha.
+   ------------------------------------------------------------------------- */
+.acceso {
+    display: grid;
+    grid-template-columns: 5fr 6fr;
+    min-height: 100vh;
+}
+
+.acceso-marca {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 34px;
+    padding: 46px 42px;
+    background: linear-gradient(160deg, #0E2A47 0%, #143A60 100%);
+    color: #FFFFFF;
+}
+
+.acceso-nombre {
+    font-size: 46px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+/* 24ch (el prototipo tiene 30) hace que cada renglón sea una idea completa:
+   "Sistema de gestión de retenciones / del Impuesto a las Ganancias. /
+   Régimen de la RG 830." Con 30ch quedaba "830." solo en el último renglón.
+   En la vista, "RG&nbsp;830" lleva un espacio duro para que el número no se
+   separe nunca de "RG", aunque cambie la fuente o el ancho. */
+.acceso-bajada {
+    max-width: 24ch;
+    margin: 12px 0 1em; /* el margen inferior es el que el prototipo hereda del <p> */
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.rasgos {
+    display: grid;
+    gap: 19px;
+}
+
+.rasgo {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.rasgo-icono {
+    display: grid;
+    place-items: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.rasgo-titulo {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.rasgo-detalle {
+    max-width: 34ch;
+    margin-top: 3px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.64);
+}
+
+.acceso-formulario {
+    display: grid;
+    place-items: center;
+    padding: 40px 36px;
+    background-color: var(--color-fondo);
+}
+
+.acceso-caja {
+    width: 100%;
+    max-width: 400px;
+    padding: 34px 32px;
+    background-color: var(--color-tarjeta);
+    border: 1px solid var(--color-borde);
+    border-radius: 14px;
+}
+
+.acceso-titulo {
+    margin: 0;
+    font-size: 27px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.acceso-texto {
+    margin: 7px 0 1em; /* ídem */
+    font-size: 13px;
+    color: var(--color-texto-atenuado);
+}
+
+/* El mensaje de error del ingreso va dentro de la tarjeta, entre el texto
+   y los campos. */
+.acceso-caja .aviso {
+    margin: 19px 0 0;
+    font-size: 12.5px;
+}
+
+.acceso-campo {
+    margin-top: 19px;
+}
+
+.acceso-campo label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.acceso-boton {
+    width: 100%;
+    margin-top: 22px;
+}
+
+.acceso-pie {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-borde);
+    font-size: 11.5px;
+    color: var(--color-texto-atenuado);
+}
+
+/* Campo con ícono a la izquierda (sobre, candado) y, opcionalmente, un
+   botón a la derecha (mostrar contraseña). El ícono se superpone al input
+   y el padding del input le deja lugar. */
+.campo-con-icono {
+    position: relative;
+}
+
+.campo-con-icono > .icono {
+    position: absolute;
+    top: 50%;
+    left: 11px;
+    transform: translateY(-50%);
+    color: var(--color-texto-atenuado);
+    pointer-events: none; /* el clic sobre el ícono llega al input */
+}
+
+.campo-con-icono > .campo-control {
+    padding-left: 35px; /* 11 de margen + 16 del ícono + 8 de separación */
+}
+
+.campo-con-icono > .campo-control:has(+ .campo-boton) {
+    padding-right: 40px;
+}
+
+.campo-boton {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--color-texto-atenuado);
+    cursor: pointer;
+}
+
+.campo-boton:hover {
+    background-color: var(--color-fondo);
+    color: var(--color-texto);
+}
+
+/* Con la contraseña visible, el ojo queda en azul para indicar el estado. */
+.campo-boton[aria-pressed="true"] {
+    color: var(--color-accion);
+}
+
+/* Resumen de validación de ASP.NET. El tag helper genera el <div> siempre;
+   cuando no hay errores le pone la clase validation-summary-valid, y ahí
+   se oculta para que no quede un aviso rojo vacío. */
+.validation-summary-valid {
+    display: none;
+}
+
+.aviso ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Por debajo de 800px el panel de marca se oculta y queda el formulario
+   centrado. */
+@media (max-width: 800px) {
+    .acceso {
+        grid-template-columns: 1fr;
+    }
+
+    .acceso-marca {
+        display: none;
+    }
+
+    .acceso-formulario {
+        padding: 24px 16px;
+    }
+
+    .acceso-caja {
+        padding: 28px 22px;
+    }
+}
+
+
+/* -------------------------------------------------------------------------
+   18. Utilidades
    ------------------------------------------------------------------------- */
 .texto-atenuado {
     color: var(--color-texto-atenuado);
@@ -1191,7 +1429,7 @@ select.campo-control {
 
 
 /* -------------------------------------------------------------------------
-   18. Pantallas angostas
+   19. Pantallas angostas
    El prototipo está pensado para escritorio. Esto es para que no se rompa
    si alguien abre el sistema desde una notebook chica o una tablet.
    ------------------------------------------------------------------------- */

@@ -1,8 +1,52 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@*
+    PÁGINA PROVISORIA. La reemplaza el panel principal del paso 6 del rediseño, con los
+    indicadores del período (operaciones, retenido, pendientes de SICORE, clientes
+    activos) y las últimas operaciones. Ver la pestaña "Panel principal" de
+    docs/prototipo-interfaz.html.
+
+    Mientras tanto, es lo primero que se ve después de ingresar: un saludo y accesos
+    directos a las secciones que el rol del usuario puede usar.
+*@
+@{
+    ViewData["Title"] = "Inicio";
+
+    // Hoy todas las secciones exigen el rol Estudio. Ver "Pendiente: habilitar el
+    // rol Cliente" en CLAUDE.md.
+    var esEstudio = User.IsInRole("Estudio");
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<h1>Te damos la bienvenida a SIGERE</h1>
+<p class="subtitulo-pagina">Sistema de gestión de retenciones del Impuesto a las Ganancias, régimen de la RG&nbsp;830.</p>
+
+@if (esEstudio)
+{
+    @* No hay acceso directo a "Nueva operación": esa pantalla necesita el cliente,
+       que se elige en el listado de operaciones. *@
+    <div class="tarjeta acciones">
+        <a class="boton boton-primario" asp-controller="Operaciones" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-file" /></svg>Operaciones
+        </a>
+        <a class="boton boton-secundario" asp-controller="Simulador" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Simulador
+        </a>
+        <a class="boton boton-secundario" asp-controller="Proveedores" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-truck" /></svg>Proveedores
+        </a>
+        <a class="boton boton-secundario" asp-controller="Sicore" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-upload" /></svg>Exportar SICORE
+        </a>
+    </div>
+}
+else
+{
+    @* Un usuario Cliente todavía no tiene secciones habilitadas: en lugar de botones
+       que llevarían a "Acceso denegado", se le explica la situación. *@
+    <div class="tarjeta">
+        <div class="tarjeta-cuerpo">
+            <p class="texto-atenuado">
+                Por ahora tu usuario sólo tiene acceso a esta página. Para consultar tus
+                operaciones o certificados, comunicate con el estudio.
+            </p>
+        </div>
+    </div>
+}
