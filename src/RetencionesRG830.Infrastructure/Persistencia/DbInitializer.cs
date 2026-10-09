@@ -11,6 +11,7 @@ public static class DbInitializer
         SeedRegimenes(context);
         SeedUsuariosDePrueba(context);
         SeedProveedoresDePrueba(context);
+        SeedSegundoClienteDePrueba(context);
     }
 
     private static void SeedRegimenes(RetencionesRG830DbContext context)
@@ -180,4 +181,114 @@ public static class DbInitializer
 
         Console.WriteLine("Se cargaron los cuatro proveedores de Metalúrgica del Valle S.A.");
     }
+
+    /// <summary>
+    /// Un segundo cliente, con sus proveedores y algunas operaciones, para poder
+    /// probar las pantallas que muestran varios clientes a la vez (por ejemplo, la
+    /// columna Cliente del listado de operaciones). Todos los datos son ficticios;
+    /// los CUIT son matemáticamente válidos.
+    ///
+    /// A diferencia de los métodos anteriores, no pregunta si la tabla está vacía
+    /// sino si este cliente ya existe: así se agrega también en las bases que ya
+    /// estaban creadas, sin tener que borrarlas.
+    /// </summary>
+    private static void SeedSegundoClienteDePrueba(RetencionesRG830DbContext context)
+    {
+        const string cuitCliente = "30-71845236-4";
+        if (context.Clientes.Any(c => c.Cuit == cuitCliente))
+        {
+            return; // ya está cargado, no hacemos nada.
+        }
+
+        var estudio = context.Usuarios.FirstOrDefault(u => u.Rol == RolUsuario.Estudio);
+        var regimen78 = context.Regimenes.FirstOrDefault(r => r.Codigo == 78);
+        var regimen94 = context.Regimenes.FirstOrDefault(r => r.Codigo == 94);
+        if (estudio is null || regimen78 is null || regimen94 is null) return;
+
+        const string localidad = "San Salvador de Jujuy - JUJUY";
+
+        var agroinsumos = new Cliente
+        {
+            Cuit = cuitCliente,
+            RazonSocial = "Agroinsumos del Norte S.R.L.",
+            Domicilio = "Av. Fascio 820",
+            Localidad = localidad,
+            NombreFirmante = "Mariela Andrea Correa",
+            CargoFirmante = "Socia gerente"
+        };
+        context.Clientes.Add(agroinsumos);
+        context.SaveChanges(); // para que "agroinsumos.Id" quede asignado.
+
+        var transportes = new Proveedor
+        {
+            ClienteId = agroinsumos.Id,
+            Cuit = "30-70927518-2",
+            RazonSocial = "Transportes Altiplano S.A.",
+            Domicilio = "Ruta 9 km 1650",
+            Localidad = localidad,
+            InscriptoEnGanancias = true,
+            TipoPersona = TipoPersona.Resto
+        };
+        var ruiz = new Proveedor
+        {
+            ClienteId = agroinsumos.Id,
+            Cuit = "20-28765431-7",
+            RazonSocial = "Ruiz, Héctor Damián",
+            Domicilio = "Lavalle 145",
+            Localidad = localidad,
+            InscriptoEnGanancias = true,
+            TipoPersona = TipoPersona.HumanaYSucesionIndivisa
+        };
+        var paz = new Proveedor
+        {
+            ClienteId = agroinsumos.Id,
+            Cuit = "27-34981206-7",
+            RazonSocial = "Paz, Silvia Noemí",
+            Domicilio = "Necochea 63",
+            Localidad = localidad,
+            InscriptoEnGanancias = false,
+            TipoPersona = TipoPersona.HumanaYSucesionIndivisa
+        };
+        context.Proveedores.AddRange(transportes, ruiz, paz);
+        context.SaveChanges();
+
+        // Las operaciones se registran con el mismo servicio que usa la pantalla de
+        // confirmación: el monto retenido, el acumulado del mes y el número de
+        // certificado los calcula el sistema, no se escriben acá. Así el seed no
+        // puede contradecir al motor de cálculo ni a los regímenes cargados.
+        // Las dos de Ruiz en el régimen 78 muestran el acumulado mensual.
+        // El servicio es asincrónico y Seed no: al arrancar la aplicación no hay
+        // contexto de sincronización, así que esperar el resultado es seguro.
+        var registro = new Servicios.ServicioRegistroOperaciones(context);
+        var operaciones = new[]
+        {
+            NuevaOperacion(agroinsumos, transportes, regimen94, 1, 4, 561, new DateOnly(2026, 9, 10), 726_000m, 600_000m, estudio),
+            NuevaOperacion(agroinsumos, ruiz, regimen78, 1, 2, 3310, new DateOnly(2026, 9, 15), 484_000m, 400_000m, estudio),
+            NuevaOperacion(agroinsumos, paz, regimen94, 4, 1, 45, new DateOnly(2026, 9, 18), 250_000m, 250_000m, estudio),
+            NuevaOperacion(agroinsumos, ruiz, regimen78, 1, 2, 3327, new DateOnly(2026, 9, 25), 363_000m, 300_000m, estudio),
+        };
+        foreach (var operacion in operaciones)
+        {
+            registro.RegistrarAsync(operacion).GetAwaiter().GetResult();
+        }
+
+        Console.WriteLine("Se cargó el cliente Agroinsumos del Norte S.R.L. con tres proveedores y cuatro operaciones.");
+    }
+
+    private static Operacion NuevaOperacion(Cliente cliente, Proveedor proveedor, Regimen regimen,
+        int tipoComprobante, int puntoVenta, long numero, DateOnly fecha,
+        decimal importeTotal, decimal importeGravado, Usuario cargadaPor) => new()
+    {
+        ClienteId = cliente.Id,
+        ProveedorId = proveedor.Id,
+        RegimenId = regimen.Id,
+        TipoComprobante = tipoComprobante,
+        PuntoVenta = puntoVenta,
+        NumeroComprobante = numero,
+        FechaComprobante = fecha,
+        FechaRetencion = fecha,
+        ImporteComprobante = importeTotal,
+        ImporteGravado = importeGravado,
+        CreadoPorUsuarioId = cargadaPor.Id
+    };
 }
