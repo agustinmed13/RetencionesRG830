@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Infrastructure.Persistencia;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
 using RetencionesRG830.Infrastructure.Servicios;
 using QuestPDF.Infrastructure;
 using RetencionesRG830.Web.Infraestructura;
@@ -19,6 +20,13 @@ QuestPDF.Settings.License = LicenseType.Community;
 builder.Services.AddControllersWithViews(opciones =>
 {
     opciones.ModelBinderProviders.Insert(0, new DecimalModelBinderProvider());
+
+    // Exige el token antifalsificación en TODOS los POST (también PUT y DELETE), sin
+    // tener que acordarse de poner [ValidateAntiForgeryToken] acción por acción. Los
+    // GET, que no modifican nada, quedan afuera. Sin esto, una página de otro sitio
+    // podría hacer que un usuario con la sesión abierta registre o anule operaciones
+    // sin saberlo (CSRF). El token lo agrega solo el tag helper de <form> en las vistas.
+    opciones.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
 
 // Conectamos el DbContext a una base de datos SQLite: un solo archivo
