@@ -146,6 +146,25 @@ body.sigere {
     stroke-linejoin: round;
 }
 
+/* Trazo más grueso para íconos chicos y simples, como el "+" de los botones. */
+.icono-grueso {
+    stroke-width: 2;
+}
+
+/* Texto que no se ve pero lee el lector de pantalla: por ejemplo, la cabecera
+   de una columna de acciones, que visualmente va vacía. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 
 /* -------------------------------------------------------------------------
    3. Estructura general
@@ -681,8 +700,14 @@ a.boton[aria-disabled="true"] {
    hace que se desplace la tabla y no la página entera. Funciona porque
    .app-principal tiene min-width: 0: sin eso, la columna de la grilla se
    estiraría hasta el ancho de la tabla y el desborde pasaría a la página.
-   Toda tabla va dentro de un .tabla-contenedor. */
+   Toda tabla va dentro de un .tabla-contenedor.
+   position: relative hace falta para que el recorte alcance también a los
+   elementos con position: absolute de adentro (como el texto .sr-only de
+   una cabecera). Sin eso, su caja la contiene el primer ancestro posicionado
+   y no este contenedor: queda fuera del recorte y vuelve a ensanchar la
+   página. Pasó con la columna de acciones del listado de operaciones. */
 .tabla-contenedor {
+    position: relative;
     overflow-x: auto;
 }
 
@@ -738,6 +763,12 @@ a.boton[aria-disabled="true"] {
     font-weight: 700;
     border-top: 1px solid var(--color-borde);
     border-bottom: 0;
+}
+
+/* Una operación anulada conserva su fila y su número de certificado, pero
+   sus importes van atenuados: no suman al total ni se informan en SICORE. */
+.fila-anulada .importe {
+    color: var(--color-texto-atenuado);
 }
 
 .tabla-vacia {

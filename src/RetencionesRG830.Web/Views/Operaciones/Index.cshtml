@@ -1,48 +1,120 @@
 @model IEnumerable<RetencionesRG830.Domain.Entidades.Operacion>
+@using RetencionesRG830.Web.Infraestructura
 
+@*
+    Listado de operaciones. Referencia: pestaña "Operaciones" de
+    docs/prototipo-interfaz.html.
+
+    Diferencias con el prototipo, a propósito:
+    - No tiene la barra de filtros. Buscar y filtrar es la historia HU-17, pendiente:
+      dibujar controles que no filtran sería peor que no tenerlos. Se mantiene el
+      filtro por cliente que ya existía, por la URL (?clienteId=...).
+    - El prototipo muestra un solo cliente y no tiene columna Cliente. Acá, cuando se
+      ven las operaciones de todos los clientes, la columna aparece.
+*@
 @{
     ViewData["Title"] = "Operaciones";
+
+    int? clienteId = ViewBag.ClienteId;
+    string? clienteRazonSocial = ViewBag.ClienteRazonSocial;
+    var todosLosClientes = clienteId is null;
+
+    var operaciones = Model.ToList();
+    var anuladas = operaciones.Count(o => o.Anulada);
+    // El total suma sólo las vigentes: una operación anulada no se informa en SICORE
+    // ni cuenta para el acumulado, así que tampoco forma parte de lo retenido.
+    var totalRetenido = operaciones.Where(o => !o.Anulada).Sum(o => o.MontoRetenido);
 }
 
-<h1>Operaciones</h1>
-
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Cert. Nº</th>
-            <th>Cliente</th>
-            <th>Proveedor</th>
-            <th>Rég.</th>
-            <th>Fecha ret.</th>
-            <th class="text-end">Gravado</th>
-            <th class="text-end">Retenido</th>
-            <th>Estado</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var op in Model)
+<div class="cabecera-pagina">
+    <h1>Operaciones</h1>
+    @* "Nueva operación" necesita saber de qué cliente es: sólo aparece cuando el
+       listado está filtrado por uno. *@
+    @if (!todosLosClientes)
     {
-                <tr>
-            <td>@op.NumeroCertificado</td>
-            <td>@op.Cliente?.RazonSocial</td>
-            <td>@op.Proveedor?.RazonSocial</td>
-            <td>@op.Regimen?.Codigo</td>
-            <td>@op.FechaRetencion.ToString("dd/MM/yyyy")</td>
-            <td class="text-end">@op.ImporteGravado.ToString("C2")</td>
-            <td class="text-end">@op.MontoRetenido.ToString("C2")</td>
-            <td>
-                @if (op.Anulada)
-                {
-                    <span class="badge bg-danger">Anulada</span>
-                }
-                else
-                {
-                    <span class="badge bg-success">Vigente</span>
-                }
-            </td>
-            <td><a asp-action="Detalle" asp-route-id="@op.Id" class="btn btn-sm btn-outline-secondary">Ver</a></td>
-        </tr>
+        <a class="boton boton-primario" asp-action="Create" asp-route-clienteId="@clienteId">
+            <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus" /></svg>Nueva operación
+        </a>
     }
-    </tbody>
-</table>
+</div>
+
+@if (todosLosClientes)
+{
+    <p class="subtitulo-pagina">Todos los clientes.</p>
+}
+else
+{
+    <p class="subtitulo-pagina">
+        Agente de retención: <b>@(clienteRazonSocial ?? "cliente inexistente")</b> ·
+        <a class="enlace" asp-action="Index">Ver todos los clientes</a>
+    </p>
+}
+
+<div class="tarjeta">
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Cert. N°</th>
+                    @if (todosLosClientes)
+                    {
+                        <th>Cliente</th>
+                    }
+                    <th>Proveedor</th>
+                    <th>Rég.</th>
+                    <th>Comprobante</th>
+                    <th>Fecha ret.</th>
+                    <th class="importe">Base acumulada</th>
+                    <th class="importe">Retenido</th>
+                    <th>Estado</th>
+                    <th><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (operaciones.Count == 0)
+                {
+                    <tr>
+                        <td class="tabla-vacia" colspan="@(todosLosClientes ? 10 : 9)">Todavía no hay operaciones registradas.</td>
+                    </tr>
+                }
+                @foreach (var op in operaciones)
+                {
+                    <tr class="@(op.Anulada ? "fila-anulada" : "")">
+                        <td class="numero-certificado">@FormatoComprobante.NumeroCertificado(op.NumeroCertificado)</td>
+                        @if (todosLosClientes)
+                        {
+                            <td>@op.Cliente?.RazonSocial</td>
+                        }
+                        <td>@op.Proveedor?.RazonSocial</td>
+                        <td><span class="regimen">@op.Regimen?.Codigo</span></td>
+                        <td>@FormatoComprobante.Describir(op)</td>
+                        <td class="fecha">@op.FechaRetencion.ToString("dd/MM/yyyy")</td>
+                        <td class="importe">@op.BaseCalculoAcumulada.ToString("C2")</td>
+                        <td class="importe">@op.MontoRetenido.ToString("C2")</td>
+                        <td>
+                            @if (op.Anulada)
+                            {
+                                <span class="tag tag-anulada">Anulada</span>
+                            }
+                            else
+                            {
+                                <span class="tag tag-vigente">Vigente</span>
+                            }
+                        </td>
+                        <td><a class="enlace" asp-action="Detalle" asp-route-id="@op.Id">Ver detalle</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="tarjeta-pie">
+        <span>
+            @operaciones.Count @(operaciones.Count == 1 ? "operación" : "operaciones")
+            @if (anuladas > 0)
+            {
+                <text>· @anuladas @(anuladas == 1 ? "anulada" : "anuladas")</text>
+            }
+        </span>
+        <span>Total retenido: <b>@totalRetenido.ToString("C2")</b></span>
+    </div>
+</div>

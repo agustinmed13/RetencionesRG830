@@ -40,6 +40,11 @@ public class OperacionesController : Controller
 
         ViewBag.ClienteId = clienteId;
 
+        // El nombre del cliente filtrado se busca aparte y no se toma de la primera
+        // operación: un cliente sin operaciones todavía también tiene que mostrarlo.
+        if (clienteId is not null)
+            ViewBag.ClienteRazonSocial = (await _db.Clientes.FindAsync(clienteId))?.RazonSocial;
+
         var operaciones = await query
             .OrderByDescending(o => o.FechaRetencion)
             .ThenByDescending(o => o.NumeroCertificado)
