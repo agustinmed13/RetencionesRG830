@@ -157,4 +157,75 @@ public class ServicioRegistroOperacionesTests : IDisposable
         Assert.Equal(2, segunda.NumeroCertificado);
         Assert.Equal(3, tercera.NumeroCertificado);
     }
+
+    /// <summary>
+    /// Un proveedor pertenece a un único cliente. Si una operación de un cliente
+    /// llegara con el proveedor de otro, el acumulado del mes se mezclaría entre
+    /// dos empresas: no se puede simular ni registrar, y no queda nada guardado.
+    /// </summary>
+    [Fact]
+    public async Task No_se_puede_registrar_con_un_proveedor_de_otro_cliente()
+    {
+        var otroCliente = new Cliente { Cuit = "30-71845236-4", RazonSocial = "Agroinsumos del Norte S.R.L." };
+        _db.Clientes.Add(otroCliente);
+        _db.SaveChanges();
+        var proveedorAjeno = new Proveedor
+        {
+            ClienteId = otroCliente.Id,
+            Cuit = "20-28765431-7",
+            RazonSocial = "Ruiz, Héctor Damián",
+            InscriptoEnGanancias = true,
+            TipoPersona = TipoPersona.HumanaYSucesionIndivisa
+        };
+        _db.Proveedores.Add(proveedorAjeno);
+        _db.SaveChanges();
+
+        var operacion = NuevaOperacion(500000m, new DateOnly(2026, 9, 10), 1);
+        operacion.ProveedorId = proveedorAjeno.Id; // cliente Metalúrgica, proveedor de Agroinsumos
+
+        Assert.False(await _servicio.ProveedorPerteneceAlClienteAsync(proveedorAjeno.Id, _clienteId));
+        Assert.True(await _servicio.ProveedorPerteneceAlClienteAsync(_proveedorId, _clienteId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.SimularAsync(operacion));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(operacion));
+        Assert.Equal(0, await _db.Operaciones.CountAsync());
+    }
+
+    /// <summary>
+    /// El mismo comprobante del mismo proveedor puede tener dos retenciones
+    /// legítimas (una factura pagada en dos cuotas): el sistema lo detecta para
+    /// avisar, pero no impide registrar.
+    /// </summary>
+    [Fact]
+    public async Task El_comprobante_repetido_se_detecta_pero_no_se_bloquea()
+    {
+        var primeraCuota = await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
+
+        var segundaCuota = NuevaOperacion(300000m, new DateOnly(2026, 9, 25), 777);
+        var repetidas = await _servicio.OperacionesConMismoComprobanteAsync(segundaCuota);
+
+        Assert.Single(repetidas);
+        Assert.Equal(primeraCuota.NumeroCertificado, repetidas[0].NumeroCertificado);
+
+        var registrada = await _servicio.RegistrarAsync(segundaCuota);
+        Assert.Equal(2, registrada.NumeroCertificado);
+
+        // Otro número de comprobante no se considera repetido.
+        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(
+            NuevaOperacion(300000m, new DateOnly(2026, 9, 26), 778)));
+    }
+
+    /// <summary>
+    /// Volver a cargar un comprobante después de anular su operación es la forma
+    /// normal de corregir un error: la anulada no cuenta como repetida.
+    /// </summary>
+    [Fact]
+    public async Task Una_operacion_anulada_no_cuenta_como_comprobante_repetido()
+    {
+        var conError = await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
+        await _servicio.AnularAsync(conError.Id, "Importe mal cargado", usuarioId: 1);
+
+        var corregida = NuevaOperacion(350000m, new DateOnly(2026, 9, 10), 777);
+
+        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(corregida));
+    }
 }

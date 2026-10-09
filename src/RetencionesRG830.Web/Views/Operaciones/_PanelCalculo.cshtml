@@ -1,0 +1,40 @@
+@model RetencionesRG830.Web.Models.OperacionViewModel
+@*
+    Contenido del panel "Cálculo de la retención" de Nueva operación.
+
+    Se dibuja una vez con la página y después lo devuelve la acción Simular cada vez
+    que cambia un dato del formulario: el JavaScript sólo reemplaza este bloque. El
+    cálculo lo hizo el servidor con SimularAsync; acá no se calcula nada.
+*@
+
+@using RetencionesRG830.Web.Infraestructura
+
+@* La ayuda del régimen viaja con el panel: nueva-operacion.js la copia debajo del
+   desplegable. Así se actualiza junto con el cálculo y sale de la misma regla. *@
+<div hidden data-ayuda-regimen>@Model.AyudaRegimen</div>
+
+@if (Model.ComprobantesRepetidos.Count > 0)
+{
+    <div class="nota-panel nota-panel-alerta panel-calculo-espera" role="status">
+        <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+        <span>@FormatoComprobante.AvisoRepetido(Model.ComprobantesRepetidos)</span>
+    </div>
+}
+
+@if (Model.Resultado is null)
+{
+    <div class="nota-panel panel-calculo-espera">
+        <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+        <span>Completá el proveedor, el régimen, la fecha de la retención y el importe gravado para ver el cálculo.</span>
+    </div>
+}
+else
+{
+    ViewData["Variante"] = "panel";
+    <partial name="_DesgloseCalculo" model="Model.Resultado" />
+}
+
+<div class="nota-panel">
+    <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+    <span>El cálculo se actualiza a medida que cargás. Todavía no se guardó nada: la operación se registra en el paso siguiente.</span>
+</div>

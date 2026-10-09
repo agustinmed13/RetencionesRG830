@@ -1,81 +1,96 @@
 @model RetencionesRG830.Web.Models.OperacionViewModel
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Confirmación. Referencia: pestaña "Confirmación" de docs/prototipo-interfaz.html.
 
+    Es el paso que separa calcular de guardar: se agregó después de detectar que un
+    Enter accidental dejaba la operación registrada, y los documentos fiscales no se
+    pueden borrar. Esta pantalla no guarda nada; sólo el botón "Confirmar y emitir
+    certificado" (acción Confirmar) escribe en la base.
+*@
 @{
     ViewData["Title"] = "Confirmar operación";
+    var resultado = Model.Resultado!;
+    var comprobante = $"{FormatoComprobante.NombreTipo(Model.TipoComprobante)} {Model.PuntoVenta:D5}-{Model.NumeroComprobante:D8}";
 }
 
-<h1>Revisá antes de confirmar</h1>
-<p class="text-muted">
-    Todavía no se guardó nada. El certificado se emite recién cuando
-    apretás "Confirmar".
-</p>
+<ol class="migas">
+    <li><a asp-action="Index" asp-route-clienteId="@Model.ClienteId">Operaciones</a></li>
+    <li>Nueva operación</li>
+    <li>Confirmar</li>
+</ol>
+<h1>Revisá antes de registrar</h1>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header">Datos cargados</div>
-            <table class="table mb-0">
-                <tbody>
-                    <tr><td>Cliente</td><td>@Model.ClienteRazonSocial</td></tr>
-                    <tr><td>Proveedor</td><td>@Model.ProveedorNombre</td></tr>
-                    <tr><td>Régimen</td><td>@Model.RegimenNombre</td></tr>
-                    <tr>
-                        <td>Comprobante</td>
-                        <td>@Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td>
-                    </tr>
-                    <tr><td>Fecha del comprobante</td><td>@Model.FechaComprobante.ToString("dd/MM/yyyy")</td></tr>
-                    <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>
-                    <tr><td>Importe total</td><td class="text-end">@Model.ImporteComprobante.ToString("C2")</td></tr>
-                    <tr><td>Importe gravado</td><td class="text-end">@Model.ImporteGravado.ToString("C2")</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header">Retención calculada</div>
-            <table class="table mb-0">
-                <tbody>
-                    <tr>
-                        <td>Base acumulada del mes</td>
-                        <td class="text-end">@Model.Resultado!.NetoSujetoARetencion.ToString("C2")</td>
-                    </tr>
-                    <tr>
-                        <td>Mínimo no sujeto a retención</td>
-                        <td class="text-end">@Model.Resultado.MinimoNoSujetoARetencion.ToString("C2")</td>
-                    </tr>
-                    <tr>
-                        <td>Retención acumulada determinada</td>
-                        <td class="text-end">@Model.Resultado.RetencionAcumuladaDeterminada.ToString("C2")</td>
-                    </tr>
-                    <tr class="table-primary fw-bold">
-                        <td>Retención a practicar</td>
-                        <td class="text-end">@Model.Resultado.RetencionAPracticar.ToString("C2")</td>
-                    </tr>
-                </tbody>
-            </table>
-            @if (!string.IsNullOrEmpty(Model.Resultado.Observacion))
-            {
-                <div class="card-footer text-muted">@Model.Resultado.Observacion</div>
-            }
-        </div>
-    </div>
+<div class="aviso" role="note">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span>Todavía no se guardó nada. Al confirmar se asigna el número de certificado y la operación ya no se puede modificar, sólo anular.</span>
 </div>
 
-<form asp-action="Confirmar" method="post">
-    <input type="hidden" asp-for="ClienteId" />
-    <input type="hidden" asp-for="ClienteRazonSocial" />
-    <input type="hidden" asp-for="ProveedorId" />
-    <input type="hidden" asp-for="RegimenId" />
-    <input type="hidden" asp-for="TipoComprobante" />
-    <input type="hidden" asp-for="PuntoVenta" />
-    <input type="hidden" asp-for="NumeroComprobante" />
-    <input type="hidden" asp-for="ImporteComprobante" />
-    <input type="hidden" asp-for="ImporteGravado" />
-    <input type="hidden" name="FechaComprobante" value="@Model.FechaComprobante.ToString("yyyy-MM-dd")" />
-    <input type="hidden" name="FechaRetencion" value="@Model.FechaRetencion.ToString("yyyy-MM-dd")" />
+@if (Model.ComprobantesRepetidos.Count > 0)
+{
+    @* Informa y deja seguir: puede ser otra cuota de la misma factura. *@
+    <div class="aviso" role="note">
+        <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+        <span>@FormatoComprobante.AvisoRepetido(Model.ComprobantesRepetidos)</span>
+    </div>
+}
 
-    <button type="submit" class="btn btn-primary btn-lg">Confirmar y emitir certificado</button>
-    <button type="submit" asp-action="Corregir" class="btn btn-secondary">Corregir</button>
-</form>
+<div class="dos-columnas">
+    <div class="tarjeta">
+        <div class="resumen">
+            <div class="dato"><div class="etiqueta">Agente de retención</div><div class="valor">@Model.ClienteRazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">Proveedor</div><div class="valor">@Model.ProveedorNombre</div></div>
+            <div class="dato"><div class="etiqueta">CUIT del proveedor</div><div class="valor cuit">@Model.ProveedorCuit</div></div>
+            <div class="dato"><div class="etiqueta">Condición</div><div class="valor">@Model.ProveedorCondicion</div></div>
+            <div class="dato"><div class="etiqueta">Comprobante</div><div class="valor">@comprobante</div></div>
+            <div class="dato"><div class="etiqueta">Régimen</div><div class="valor"><span class="regimen">@Model.RegimenCodigo</span> @Model.RegimenNombre</div></div>
+            <div class="dato"><div class="etiqueta">Fecha del comprobante</div><div class="valor fecha">@Model.FechaComprobante.ToString("dd/MM/yyyy")</div></div>
+            <div class="dato"><div class="etiqueta">Fecha de la retención</div><div class="valor fecha">@Model.FechaRetencion.ToString("dd/MM/yyyy")</div></div>
+            <div class="dato"><div class="etiqueta">Importe total</div><div class="valor cifras">@Model.ImporteComprobante.ToString("C2")</div></div>
+            <div class="dato"><div class="etiqueta">Importe gravado</div><div class="valor cifras">@Model.ImporteGravado.ToString("C2")</div></div>
+        </div>
+
+        @{ ViewData["Variante"] = "confirmacion"; }
+        <partial name="_DesgloseCalculo" model="resultado" />
+
+        @* Los datos viajan ocultos: Confirmar recalcula con el motor antes de guardar,
+           no confía en los números que se mostraron acá. *@
+        <form asp-action="Confirmar" method="post" class="pie-formulario">
+            <input type="hidden" asp-for="ClienteId" />
+            <input type="hidden" asp-for="ClienteRazonSocial" />
+            <input type="hidden" asp-for="ProveedorId" />
+            <input type="hidden" asp-for="RegimenId" />
+            <input type="hidden" asp-for="TipoComprobante" />
+            <input type="hidden" asp-for="PuntoVenta" />
+            <input type="hidden" asp-for="NumeroComprobante" />
+            <input type="hidden" asp-for="ImporteComprobante" />
+            <input type="hidden" asp-for="ImporteGravado" />
+            <input type="hidden" name="FechaComprobante" value="@Model.FechaComprobante.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="FechaRetencion" value="@Model.FechaRetencion.ToString("yyyy-MM-dd")" />
+
+            @* "Corregir datos" va primero: si alguien aprieta Enter, el navegador usa el
+               primer botón del formulario, y así un Enter vuelve al formulario en lugar
+               de registrar la operación. *@
+            <button type="submit" asp-action="Corregir" class="boton boton-neutro">Corregir datos</button>
+            <button type="submit" class="boton boton-primario boton-grande">
+                <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-check" /></svg>Confirmar y emitir certificado
+            </button>
+        </form>
+    </div>
+
+    <aside class="tarjeta panel-calculo" aria-label="Qué pasa al confirmar">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué pasa al confirmar
+        </h2>
+        <div class="panel-texto">
+            <p>Se asigna el certificado <b class="numero-certificado">N° @FormatoComprobante.NumeroCertificado(Model.ProximoNumeroCertificado)</b>, el siguiente correlativo de este agente de retención.</p>
+            <p>La operación pasa a integrar el acumulado mensual de @Model.ProveedorNombre en el régimen @Model.RegimenCodigo.</p>
+            <p>Se informa en el archivo para SICORE del período @Model.FechaRetencion.ToString("MM/yyyy").</p>
+            <p>Queda registrado que la cargó @(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value) el @DateTime.Today.ToString("dd/MM/yyyy").</p>
+        </div>
+        <div class="nota-panel nota-panel-alerta">
+            <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+            <span>Una operación registrada no se borra. Si tiene un error, se anula indicando el motivo y conserva su número de certificado.</span>
+        </div>
+    </aside>
+</div>

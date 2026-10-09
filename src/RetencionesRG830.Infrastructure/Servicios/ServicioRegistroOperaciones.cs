@@ -36,6 +36,14 @@ public class ServicioRegistroOperaciones
         var proveedor = await _db.Proveedores.FindAsync(operacion.ProveedorId)
             ?? throw new InvalidOperationException("El proveedor indicado no existe.");
 
+        // Un proveedor pertenece a un único cliente (regla 8). Si se aceptara uno
+        // de otro cliente, el acumulado del mes se buscaría sobre las operaciones de
+        // otro agente de retención y la operación ensuciaría el acumulado de las dos
+        // empresas. Se controla acá, que es por donde pasan la simulación y el
+        // registro, aunque la pantalla ya lo valide antes con un mensaje amable.
+        if (proveedor.ClienteId != operacion.ClienteId)
+            throw new InvalidOperationException("El proveedor indicado no pertenece a este cliente.");
+
         var regimen = await _db.Regimenes
             .Include(r => r.Tramos)
             .FirstOrDefaultAsync(r => r.Id == operacion.RegimenId)
@@ -95,7 +103,41 @@ public class ServicioRegistroOperaciones
         return (anteriores.Sum(o => o.ImporteGravado), anteriores.Sum(o => o.MontoRetenido));
     }
 
-    private async Task<int> SiguienteNumeroCertificadoAsync(int clienteId)
+    /// <summary>
+    /// true si el proveedor existe y es de ese cliente. Lo usan la validación del
+    /// formulario y el cálculo en vivo, para avisar antes de llegar al error de
+    /// SimularAsync.
+    /// </summary>
+    public Task<bool> ProveedorPerteneceAlClienteAsync(int proveedorId, int clienteId) =>
+        _db.Proveedores.AnyAsync(p => p.Id == proveedorId && p.ClienteId == clienteId);
+
+    /// <summary>
+    /// Las operaciones vigentes del mismo cliente y proveedor con el mismo comprobante
+    /// (tipo, punto de venta y número). NO es un error: la retención se practica al
+    /// pagar, no al facturar, así que una factura pagada en dos cuotas da dos
+    /// retenciones legítimas con el mismo comprobante. Sirve para avisarle al
+    /// operador, que decide. Las anuladas no cuentan: volver a cargar un comprobante
+    /// después de anular su operación es la forma normal de corregir un error.
+    /// Pendiente de confirmar con el contador del estudio (ver CLAUDE.md).
+    /// </summary>
+    public Task<List<Operacion>> OperacionesConMismoComprobanteAsync(Operacion operacion) =>
+        _db.Operaciones
+            .Where(o => o.ClienteId == operacion.ClienteId
+                     && o.ProveedorId == operacion.ProveedorId
+                     && o.TipoComprobante == operacion.TipoComprobante
+                     && o.PuntoVenta == operacion.PuntoVenta
+                     && o.NumeroComprobante == operacion.NumeroComprobante
+                     && o.Id != operacion.Id
+                     && !o.Anulada)
+            .OrderBy(o => o.NumeroCertificado)
+            .ToListAsync();
+
+    /// <summary>
+    /// El próximo número de certificado correlativo del cliente. Es público para
+    /// poder anticiparlo en la pantalla de confirmación; el número definitivo se
+    /// vuelve a calcular en RegistrarAsync, en el momento de guardar.
+    /// </summary>
+    public async Task<int> SiguienteNumeroCertificadoAsync(int clienteId)
     {
         var ultimo = await _db.Operaciones
             .Where(o => o.ClienteId == clienteId)

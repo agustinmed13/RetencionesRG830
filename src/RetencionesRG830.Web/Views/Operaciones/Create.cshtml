@@ -1,72 +1,156 @@
 @model RetencionesRG830.Web.Models.OperacionViewModel
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Nueva operación. Referencia: pestaña "Nueva operación" de docs/prototipo-interfaz.html.
 
+    Formulario a la izquierda, panel de cálculo a la derecha. El panel se actualiza
+    mientras se carga, pero el cálculo lo hace el servidor (acción Simular, que usa
+    el motor de SimularAsync): wwwroot/js/nueva-operacion.js sólo pide el panel y lo
+    muestra. "Revisar cálculo" lleva a la confirmación y no guarda nada.
+*@
 @{
     ViewData["Title"] = "Nueva operación";
+
+    var proveedores = (List<OpcionConAyuda>)ViewBag.Proveedores;
+    var regimenes = (List<OpcionConAyuda>)ViewBag.Regimenes;
+    string? clienteCuit = ViewBag.ClienteCuit;
+
+    // Al volver de "Corregir datos", las ayudas de los desplegables ya tienen que
+    // mostrar lo elegido, sin esperar al JavaScript.
+    var ayudaProveedor = proveedores.FirstOrDefault(p => p.Id == Model.ProveedorId)?.Ayuda;
 }
 
+<ol class="migas">
+    <li><a asp-action="Index" asp-route-clienteId="@Model.ClienteId">Operaciones</a></li>
+    <li>Nueva operación</li>
+</ol>
 <h1>Nueva operación</h1>
-<p class="text-muted">Cliente: <strong>@Model.ClienteRazonSocial</strong></p>
-<form asp-action="Revisar" method="post" data-enter-siguiente>
-    <input type="hidden" asp-for="ClienteId" />
-    <input type="hidden" asp-for="ClienteRazonSocial" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-    <div class="row">
-        <div class="col-md-6 mb-3">
-            <label asp-for="ProveedorId" class="form-label"></label>
-            <select asp-for="ProveedorId" asp-items="ViewBag.Proveedores" class="form-select">
-                <option value="">-- Elegí un proveedor --</option>
-            </select>
-            <span asp-validation-for="ProveedorId" class="text-danger"></span>
+<div class="banda">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-users" /></svg>
+    <span>Agente de retención: <b>@Model.ClienteRazonSocial</b>@if (clienteCuit is not null){<text> · CUIT <span class="cuit">@clienteCuit</span></text>}</span>
+</div>
+
+<div class="dos-columnas">
+    @* data-enter-siguiente: Enter pasa al campo siguiente y no envía (ver site.js).
+       data-simular-url: adonde nueva-operacion.js pide el panel de cálculo. *@
+    <form asp-action="Revisar" method="post" class="tarjeta" id="form-operacion"
+          data-enter-siguiente data-simular-url="@Url.Action("Simular")">
+        <input type="hidden" asp-for="ClienteId" />
+        <input type="hidden" asp-for="ClienteRazonSocial" />
+
+        <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-truck" /></svg>Proveedor y régimen
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="ProveedorId">Proveedor <span class="requerido">*</span></label>
+                    <select asp-for="ProveedorId" class="campo-control" data-ayuda="ayuda-proveedor">
+                        <option value="">Elegí un proveedor</option>
+                        @foreach (var p in proveedores)
+                        {
+                            <option value="@p.Id" data-ayuda="@p.Ayuda">@p.Texto</option>
+                        }
+                    </select>
+                    <div class="campo-ayuda" id="ayuda-proveedor">@ayudaProveedor</div>
+                    <span asp-validation-for="ProveedorId" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="RegimenId">Régimen <span class="requerido">*</span></label>
+                    <select asp-for="RegimenId" class="campo-control">
+                        <option value="">Elegí un régimen</option>
+                        @foreach (var r in regimenes)
+                        {
+                            <option value="@r.Id">@r.Texto</option>
+                        }
+                    </select>
+                    @* Qué alícuota corresponde al proveedor elegido y por qué. La arma el
+                       servidor y se actualiza junto con el panel de cálculo. *@
+                    <div class="campo-ayuda" id="ayuda-regimen" aria-live="polite">@Model.AyudaRegimen</div>
+                    <span asp-validation-for="RegimenId" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-doc" /></svg>Comprobante
+            </h2>
+            <div class="rejilla rejilla-3">
+                <div class="campo">
+                    <label for="TipoComprobante">Tipo <span class="requerido">*</span></label>
+                    <select asp-for="TipoComprobante" class="campo-control">
+                        @foreach (var (codigo, nombre) in FormatoComprobante.Tipos)
+                        {
+                            <option value="@codigo">@nombre</option>
+                        }
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="PuntoVenta">Pto. venta <span class="requerido">*</span></label>
+                    <input asp-for="PuntoVenta" type="number" min="0" class="campo-control" />
+                    <span asp-validation-for="PuntoVenta" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="NumeroComprobante">Número <span class="requerido">*</span></label>
+                    <input asp-for="NumeroComprobante" type="number" min="0" class="campo-control" />
+                    <span asp-validation-for="NumeroComprobante" class="campo-error"></span>
+                </div>
+            </div>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="FechaComprobante">Fecha del comprobante <span class="requerido">*</span></label>
+                    <input asp-for="FechaComprobante" type="date" class="campo-control" />
+                    <span asp-validation-for="FechaComprobante" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="FechaRetencion">Fecha de la retención <span class="requerido">*</span></label>
+                    <input asp-for="FechaRetencion" type="date" class="campo-control" />
+                    <div class="campo-ayuda">Define el mes del acumulado y el período de SICORE.</div>
+                    <span asp-validation-for="FechaRetencion" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Importes
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="ImporteComprobante">Importe total <span class="requerido">*</span></label>
+                    <input asp-for="ImporteComprobante" type="number" step="0.01" min="0" class="campo-control importe" />
+                    <span asp-validation-for="ImporteComprobante" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="ImporteGravado">Importe gravado <span class="requerido">*</span></label>
+                    <input asp-for="ImporteGravado" type="number" step="0.01" min="0" class="campo-control importe" />
+                    <div class="campo-ayuda">No puede superar el importe total.</div>
+                    <span asp-validation-for="ImporteGravado" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="pie-formulario">
+            <a class="boton boton-neutro" asp-action="Index" asp-route-clienteId="@Model.ClienteId">Cancelar</a>
+            <button type="submit" class="boton boton-primario">Revisar cálculo</button>
         </div>
+    </form>
 
-        <div class="col-md-6 mb-3">
-            <label asp-for="RegimenId" class="form-label"></label>
-            <select asp-for="RegimenId" asp-items="ViewBag.Regimenes" class="form-select">
-                <option value="">-- Elegí un régimen --</option>
-            </select>
-            <span asp-validation-for="RegimenId" class="text-danger"></span>
+    <aside class="tarjeta panel-calculo" aria-label="Cálculo de la retención">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Cálculo de la retención
+        </h2>
+        @* aria-live: el lector de pantalla anuncia el panel cuando se actualiza. *@
+        <div id="panel-calculo" aria-live="polite">
+            <partial name="_PanelCalculo" model="Model" />
         </div>
+    </aside>
+</div>
 
-        <div class="col-md-4 mb-3">
-            <label asp-for="TipoComprobante" class="form-label"></label>
-            <input asp-for="TipoComprobante" type="number" class="form-control" />
-            <div class="form-text">Código AFIP: 1 = Factura, 4 = Recibo.</div>
-        </div>
-
-        <div class="col-md-4 mb-3">
-            <label asp-for="PuntoVenta" class="form-label"></label>
-            <input asp-for="PuntoVenta" type="number" class="form-control" />
-        </div>
-
-        <div class="col-md-4 mb-3">
-            <label asp-for="NumeroComprobante" class="form-label"></label>
-            <input asp-for="NumeroComprobante" type="number" class="form-control" />
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label asp-for="FechaComprobante" class="form-label"></label>
-            <input asp-for="FechaComprobante" type="date" class="form-control" />
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label asp-for="FechaRetencion" class="form-label"></label>
-            <input asp-for="FechaRetencion" type="date" class="form-control" />
-            <div class="form-text">Define en qué mes acumula la retención.</div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label asp-for="ImporteComprobante" class="form-label"></label>
-            <input asp-for="ImporteComprobante" type="number" step="0.01" class="form-control" />
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <label asp-for="ImporteGravado" class="form-label"></label>
-            <input asp-for="ImporteGravado" type="number" step="0.01" class="form-control" />
-            <span asp-validation-for="ImporteGravado" class="text-danger"></span>
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Calcular retención</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>
+@section Scripts {
+    <script src="~/js/nueva-operacion.js" asp-append-version="true"></script>
+}

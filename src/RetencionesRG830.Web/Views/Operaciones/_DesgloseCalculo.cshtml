@@ -1,0 +1,77 @@
+@model RetencionesRG830.Application.Servicios.ResultadoCalculoRetencion
+@*
+    Los siete renglones del cálculo, en el orden de la hoja Cálculo de la planilla,
+    para que el operador pueda contrastar los dos resultados:
+      1. base acumulada del mes           5. retención determinada
+      2. monto no sujeto a retención      6. retenciones anteriores del mes
+      3. neto sujeto a retención          7. retención a practicar
+      4. alícuota aplicada
+
+    Todos los valores salen tal cual del resultado del motor (ResultadoCalculoRetencion):
+    acá no se hace ninguna cuenta, sólo se les da formato.
+
+    Lo usan el panel de "Nueva operación" y la pantalla de confirmación. ViewData["Variante"]
+    elige el aspecto: "panel" (renglones que restan en rojo y el total en un recuadro verde)
+    o "confirmacion" (el total como último renglón destacado), como en el prototipo.
+*@
+@{
+    var esPanel = (ViewData["Variante"] as string) != "confirmacion";
+
+    // Los renglones que restan llevan el signo menos tipográfico (−), como en el prototipo.
+    string Resta(decimal valor) => valor > 0 ? "−" + valor.ToString("C2") : valor.ToString("C2");
+
+    var alicuota = Model.SeAplicoEscala ? "Según escala" : (Model.TasaAplicada * 100).ToString("N2") + " %";
+}
+
+<div class="@(esPanel ? "renglones" : "desglose")">
+    <div class="renglon">
+        <span class="etiqueta">Base acumulada del mes</span>
+        <span class="valor">@Model.BaseAcumuladaDelMes.ToString("C2")</span>
+    </div>
+    <div class="renglon @(esPanel ? "renglon-resta" : "")">
+        <span class="etiqueta">Monto no sujeto a retención</span>
+        <span class="valor">@Resta(Model.MinimoNoSujetoARetencion)</span>
+    </div>
+    <div class="renglon @(esPanel ? "renglon-separado" : "")">
+        <span class="etiqueta">Neto sujeto a retención</span>
+        <span class="valor">@Model.NetoSujetoARetencion.ToString("C2")</span>
+    </div>
+    <div class="renglon">
+        <span class="etiqueta">Alícuota aplicada</span>
+        <span class="valor">@alicuota</span>
+    </div>
+    <div class="renglon">
+        <span class="etiqueta">Retención determinada</span>
+        <span class="valor">@Model.RetencionAcumuladaDeterminada.ToString("C2")</span>
+    </div>
+    <div class="renglon @(esPanel ? "renglon-resta" : "")">
+        <span class="etiqueta">Retenciones anteriores del mes</span>
+        <span class="valor">@Resta(Model.RetencionesAnterioresDelMes)</span>
+    </div>
+    @if (!esPanel)
+    {
+        <div class="renglon renglon-total">
+            <span class="etiqueta">Retención a practicar</span>
+            <span class="valor">@Model.RetencionAPracticar.ToString("C2")</span>
+        </div>
+    }
+</div>
+
+@if (esPanel)
+{
+    <div class="total">
+        <div class="etiqueta">Retención a practicar</div>
+        <div class="valor">@Model.RetencionAPracticar.ToString("C2")</div>
+    </div>
+}
+
+@* Cuando la retención da cero porque no alcanza el mínimo, el motor deja una
+   observación (celda E26 de la planilla). Se muestra para que el cero no parezca
+   un error. *@
+@if (!string.IsNullOrEmpty(Model.Observacion))
+{
+    <div class="nota-panel nota-panel-alerta">
+        <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+        <span>No corresponde retener. @Model.Observacion.</span>
+    </div>
+}

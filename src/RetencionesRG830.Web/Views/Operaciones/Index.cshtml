@@ -10,7 +10,12 @@
       dibujar controles que no filtran sería peor que no tenerlos. Se mantiene el
       filtro por cliente que ya existía, por la URL (?clienteId=...).
     - El prototipo muestra un solo cliente y no tiene columna Cliente. Acá, cuando se
-      ven las operaciones de todos los clientes, la columna aparece.
+      ven las operaciones de todos los clientes, la columna aparece. Para que en esa vista
+      entren a 1280px sin desplazar Retenido y Estado, que son lo primero que se mira, se
+      saca a cambio la columna Base acumulada: se ve en el listado de cada cliente y en el
+      detalle de la operación. Por la misma razón el número de certificado es el enlace al
+      detalle (no hay columna "Ver detalle"), y Cliente y Proveedor se cortan con puntos
+      suspensivos a partir de cierto ancho, con el nombre completo al pasar el mouse.
 *@
 @{
     ViewData["Title"] = "Operaciones";
@@ -64,32 +69,40 @@ else
                     <th>Rég.</th>
                     <th>Comprobante</th>
                     <th>Fecha ret.</th>
-                    <th class="importe">Base acumulada</th>
+                    @if (!todosLosClientes)
+                    {
+                        <th class="importe">Base acumulada</th>
+                    }
                     <th class="importe">Retenido</th>
                     <th>Estado</th>
-                    <th><span class="sr-only">Acciones</span></th>
                 </tr>
             </thead>
             <tbody>
                 @if (operaciones.Count == 0)
                 {
                     <tr>
-                        <td class="tabla-vacia" colspan="@(todosLosClientes ? 10 : 9)">Todavía no hay operaciones registradas.</td>
+                        <td class="tabla-vacia" colspan="8">Todavía no hay operaciones registradas.</td>
                     </tr>
                 }
                 @foreach (var op in operaciones)
                 {
                     <tr class="@(op.Anulada ? "fila-anulada" : "")">
-                        <td class="numero-certificado">@FormatoComprobante.NumeroCertificado(op.NumeroCertificado)</td>
+                        <td>
+                            <a class="numero-certificado enlace-certificado" asp-action="Detalle" asp-route-id="@op.Id"
+                               title="Ver el detalle de la operación">@FormatoComprobante.NumeroCertificado(op.NumeroCertificado)</a>
+                        </td>
                         @if (todosLosClientes)
                         {
-                            <td>@op.Cliente?.RazonSocial</td>
+                            <td><span class="recortado" title="@op.Cliente?.RazonSocial">@op.Cliente?.RazonSocial</span></td>
                         }
-                        <td>@op.Proveedor?.RazonSocial</td>
+                        <td><span class="recortado" title="@op.Proveedor?.RazonSocial">@op.Proveedor?.RazonSocial</span></td>
                         <td><span class="regimen">@op.Regimen?.Codigo</span></td>
                         <td>@FormatoComprobante.Describir(op)</td>
                         <td class="fecha">@op.FechaRetencion.ToString("dd/MM/yyyy")</td>
-                        <td class="importe">@op.BaseCalculoAcumulada.ToString("C2")</td>
+                        @if (!todosLosClientes)
+                        {
+                            <td class="importe">@op.BaseCalculoAcumulada.ToString("C2")</td>
+                        }
                         <td class="importe">@op.MontoRetenido.ToString("C2")</td>
                         <td>
                             @if (op.Anulada)
@@ -101,7 +114,6 @@ else
                                 <span class="tag tag-vigente">Vigente</span>
                             }
                         </td>
-                        <td><a class="enlace" asp-action="Detalle" asp-route-id="@op.Id">Ver detalle</a></td>
                     </tr>
                 }
             </tbody>

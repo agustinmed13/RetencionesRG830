@@ -202,6 +202,22 @@ alcanza con ocultar enlaces en la interfaz. Un enlace oculto no impide escribir 
 mano: cada consulta de operaciones, proveedores, certificados y SICORE tiene que restringirse
 a la empresa del usuario autenticado.
 
+### Pendiente de confirmar con el contador: comprobante repetido
+
+Hoy el sistema **avisa pero no bloquea** cuando se carga una operación con el mismo
+comprobante (tipo, punto de venta y número) del mismo proveedor que otra operación vigente.
+El aviso aparece en el panel de cálculo y en la confirmación, con el certificado y la fecha
+de la operación existente, y el operador puede seguir.
+
+El motivo es del negocio: **la retención se practica al pagar, no al facturar**, así que una
+factura pagada en dos cuotas genera dos retenciones legítimas con el mismo comprobante. Las
+operaciones anuladas no cuentan como repetidas, porque volver a cargar un comprobante
+después de anular su operación es la forma normal de corregir un error.
+
+Falta que el contador del estudio confirme ese criterio. Si dijera que el mismo comprobante
+no puede repetirse, el control está en `ServicioRegistroOperaciones.OperacionesConMismoComprobanteAsync`
+y pasaría de aviso a validación.
+
 ---
 
 ## Riesgo abierto más importante

@@ -8,6 +8,28 @@ namespace RetencionesRG830.Application.Servicios;
 /// </summary>
 public class ResultadoCalculoRetencion
 {
+    /// <summary>
+    /// El neto gravado acumulado del mes con el que se hizo el cálculo, incluida la
+    /// operación actual. Es un dato de entrada: el motor lo devuelve para que el
+    /// desglose que ve el operador salga completo del resultado, sin que la
+    /// pantalla tenga que reconstruir ningún renglón por su cuenta.
+    /// </summary>
+    public decimal BaseAcumuladaDelMes { get; set; }
+
+    /// <summary>
+    /// Lo ya retenido antes al mismo proveedor, en el mismo régimen y el mismo
+    /// mes, que se descuenta de la retención determinada. También es un dato de
+    /// entrada que se devuelve por la misma razón.
+    /// </summary>
+    public decimal RetencionesAnterioresDelMes { get; set; }
+
+    /// <summary>
+    /// true si la retención se determinó por la escala progresiva (régimen por
+    /// escala y proveedor inscripto). En ese caso TasaAplicada no dice nada y la
+    /// pantalla muestra "Según escala" en lugar de un porcentaje.
+    /// </summary>
+    public bool SeAplicoEscala { get; set; }
+
     /// <summary>Fila "Mínimo no sujeto a retención" (celda C21 del Excel).</summary>
     public decimal MinimoNoSujetoARetencion { get; set; }
 

@@ -217,4 +217,89 @@ public class ServicioCalculoRetencionTests
 
         Assert.Equal(1400m, resultado.RetencionAPracticar, 4);
     }
+
+    /// <summary>
+    /// Los siete renglones del desglose que ve el operador salen todos del
+    /// resultado del motor, y tienen que cerrar entre sí como en la hoja Cálculo.
+    /// Es el caso del prototipo de interfaz: segundo pago del mes a un mismo
+    /// proveedor en el régimen 78 (datos ficticios).
+    /// </summary>
+    [Fact]
+    public void El_desglose_sale_completo_del_resultado_y_cierra()
+    {
+        var resultado = ServicioCalculoRetencion.Calcular(
+            regimen: Regimen78(),
+            proveedorInscriptoEnGanancias: true,
+            tipoPersona: TipoPersona.HumanaYSucesionIndivisa,
+            netoGravadoAcumuladoMensual: 2_000_000m,
+            retencionesAcumuladasDelMes: 11_520m);
+
+        Assert.Equal(2_000_000m, resultado.BaseAcumuladaDelMes);           // 1. base acumulada
+        Assert.Equal(224_000m, resultado.MinimoNoSujetoARetencion);        // 2. monto no sujeto
+        Assert.Equal(1_776_000m, resultado.NetoSujetoARetencion);          // 3. neto sujeto
+        Assert.Equal(0.02m, resultado.TasaAplicada);                       // 4. alícuota
+        Assert.False(resultado.SeAplicoEscala);
+        Assert.Equal(35_520m, resultado.RetencionAcumuladaDeterminada, 4); // 5. determinada
+        Assert.Equal(11_520m, resultado.RetencionesAnterioresDelMes);      // 6. anteriores
+        Assert.Equal(24_000m, resultado.RetencionAPracticar, 4);           // 7. a practicar
+
+        // Y cada renglón se deduce de los anteriores.
+        Assert.Equal(resultado.BaseAcumuladaDelMes - resultado.MinimoNoSujetoARetencion,
+                     resultado.NetoSujetoARetencion);
+        Assert.Equal(resultado.RetencionAcumuladaDeterminada - resultado.RetencionesAnterioresDelMes,
+                     resultado.RetencionAPracticar);
+    }
+
+    /// <summary>
+    /// La pantalla muestra "Según escala" en lugar de la alícuota cuando el motor
+    /// usó la escala. Sólo pasa con régimen por escala Y proveedor inscripto.
+    /// </summary>
+    [Theory]
+    [InlineData(116, true, true)]   // escala e inscripto: escala
+    [InlineData(116, false, false)] // escala pero no inscripto: tasa fija del 28%
+    [InlineData(78, true, false)]   // régimen de tasa fija: nunca escala
+    public void Informa_si_se_aplico_la_escala(int codigoRegimen, bool inscripto, bool esperado)
+    {
+        var regimen = codigoRegimen == 116 ? Regimen116() : Regimen78();
+
+        var resultado = ServicioCalculoRetencion.Calcular(
+            regimen: regimen,
+            proveedorInscriptoEnGanancias: inscripto,
+            tipoPersona: TipoPersona.HumanaYSucesionIndivisa,
+            netoGravadoAcumuladoMensual: 200_000m,
+            retencionesAcumuladasDelMes: 0m);
+
+        Assert.Equal(esperado, resultado.SeAplicoEscala);
+    }
+
+    /// <summary>
+    /// La alícuota según la condición del proveedor (celda C22). La pantalla de
+    /// carga usa este mismo método para explicarle al operador qué tasa se aplica,
+    /// así que tiene que coincidir con la que usa el cálculo. Régimen 94, el que
+    /// tiene tasas distintas para persona humana y para el resto.
+    /// </summary>
+    [Theory]
+    [InlineData(true, TipoPersona.HumanaYSucesionIndivisa, 0.02)] // inscripto
+    [InlineData(false, TipoPersona.HumanaYSucesionIndivisa, 0.28)] // no inscripto, persona humana
+    [InlineData(false, TipoPersona.Resto, 0.25)]                  // no inscripto, resto
+    public void La_tasa_aplicable_depende_de_la_condicion_del_proveedor(
+        bool inscripto, TipoPersona tipoPersona, double tasaEsperada)
+    {
+        var regimen94 = new Regimen
+        {
+            Codigo = 94,
+            TipoCalculo = TipoCalculoRegimen.TasaFija,
+            TasaInscripto = 0.02m,
+            TasaNoInscriptoHumana = 0.28m,
+            TasaNoInscriptoResto = 0.25m,
+            MontoNoSujetoARetencion = 67170m,
+            MinimoRetencion = 240m
+        };
+
+        var tasa = ServicioCalculoRetencion.TasaAplicable(regimen94, inscripto, tipoPersona);
+        var resultado = ServicioCalculoRetencion.Calcular(regimen94, inscripto, tipoPersona, 500_000m, 0m);
+
+        Assert.Equal((decimal)tasaEsperada, tasa);
+        Assert.Equal(tasa, resultado.TasaAplicada); // la pantalla y el cálculo dicen lo mismo
+    }
 }

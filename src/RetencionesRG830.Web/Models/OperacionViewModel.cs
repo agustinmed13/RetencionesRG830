@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using RetencionesRG830.Application.Servicios;
+using RetencionesRG830.Domain.Entidades;
 
 namespace RetencionesRG830.Web.Models;
 
@@ -48,4 +49,31 @@ public class OperacionViewModel
 
     /// <summary>Descripción del régimen elegido, para mostrarla en la revisión.</summary>
     public string RegimenNombre { get; set; } = string.Empty;
+
+    /// <summary>Código del régimen (78, 94, 116...), para la etiqueta de la revisión.</summary>
+    public int RegimenCodigo { get; set; }
+
+    /// <summary>CUIT del proveedor elegido.</summary>
+    public string ProveedorCuit { get; set; } = string.Empty;
+
+    /// <summary>"Inscripto · Persona humana": la condición que define tasa y piso.</summary>
+    public string ProveedorCondicion { get; set; } = string.Empty;
+
+    /// <summary>
+    /// El número de certificado que se le va a asignar, para anticiparlo en la
+    /// revisión. El definitivo se asigna al confirmar.
+    /// </summary>
+    public int ProximoNumeroCertificado { get; set; }
+
+    /// <summary>
+    /// Texto debajo del régimen: la alícuota que corresponde al proveedor elegido y
+    /// por qué. Lo arma el servidor con la misma regla que usa el cálculo.
+    /// </summary>
+    public string AyudaRegimen { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Operaciones vigentes con el mismo comprobante del mismo proveedor. No impide
+    /// registrar (puede ser otra cuota de la misma factura): sólo se avisa.
+    /// </summary>
+    public List<Operacion> ComprobantesRepetidos { get; set; } = new();
 }

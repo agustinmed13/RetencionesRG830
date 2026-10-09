@@ -30,7 +30,13 @@ public static class ServicioCalculoRetencion
         decimal netoGravadoAcumuladoMensual,
         decimal retencionesAcumuladasDelMes)
     {
-        var resultado = new ResultadoCalculoRetencion();
+        var resultado = new ResultadoCalculoRetencion
+        {
+            // Los datos de entrada se devuelven tal cual, para que el desglose
+            // de la pantalla salga completo de este resultado.
+            BaseAcumuladaDelMes = netoGravadoAcumuladoMensual,
+            RetencionesAnterioresDelMes = retencionesAcumuladasDelMes
+        };
 
         // --- C21: mínimo no sujeto a retención ---
         // Si el proveedor NO está inscripto en Ganancias, no corresponde
@@ -43,11 +49,7 @@ public static class ServicioCalculoRetencion
         // --- C22: tasa aplicable ---
         // Si está inscripto se usa la tasa de inscriptos. Si no, la tasa
         // depende de si es persona humana o del "resto" (sociedades, etc.).
-        resultado.TasaAplicada = proveedorInscriptoEnGanancias
-            ? regimen.TasaInscripto
-            : tipoPersona == TipoPersona.HumanaYSucesionIndivisa
-                ? regimen.TasaNoInscriptoHumana
-                : regimen.TasaNoInscriptoResto;
+        resultado.TasaAplicada = TasaAplicable(regimen, proveedorInscriptoEnGanancias, tipoPersona);
 
         // --- C24: neto sujeto a retención ---
         // Al acumulado del mes se le resta el piso. Si el acumulado todavía
@@ -63,9 +65,8 @@ public static class ServicioCalculoRetencion
         // inscripto se le aplica siempre una tasa fija (28%), aunque el
         // régimen sea de los que van por escala. Por eso la bifurcación
         // depende de las dos cosas: el régimen Y la condición del proveedor.
-        var correspondeEscala =
-            regimen.TipoCalculo == TipoCalculoRegimen.EscalaProgresiva
-            && proveedorInscriptoEnGanancias;
+        var correspondeEscala = CorrespondeEscala(regimen, proveedorInscriptoEnGanancias);
+        resultado.SeAplicoEscala = correspondeEscala;
 
         resultado.RetencionAcumuladaDeterminada = correspondeEscala
             ? CalcularPorEscala(regimen, resultado.NetoSujetoARetencion)
@@ -98,6 +99,30 @@ public static class ServicioCalculoRetencion
 
         return resultado;
     }
+
+    /// <summary>
+    /// C22 de la planilla: la tasa que corresponde según la condición del proveedor.
+    /// Si está inscripto, la de inscriptos. Si no, depende de si es persona humana
+    /// o del "resto" (sociedades, etc.).
+    ///
+    /// Es pública para que la pantalla de carga pueda decirle al operador qué
+    /// alícuota se va a aplicar y por qué, con la misma regla que usa el cálculo.
+    /// </summary>
+    public static decimal TasaAplicable(Regimen regimen, bool proveedorInscriptoEnGanancias, TipoPersona tipoPersona) =>
+        proveedorInscriptoEnGanancias
+            ? regimen.TasaInscripto
+            : tipoPersona == TipoPersona.HumanaYSucesionIndivisa
+                ? regimen.TasaNoInscriptoHumana
+                : regimen.TasaNoInscriptoResto;
+
+    /// <summary>
+    /// true si la retención se determina por la escala progresiva: régimen por
+    /// escala Y proveedor inscripto. En la hoja Tablas el "s/escala" figura sólo
+    /// en la columna de inscriptos; a un no inscripto se le aplica tasa fija.
+    /// Pública por la misma razón que TasaAplicable.
+    /// </summary>
+    public static bool CorrespondeEscala(Regimen regimen, bool proveedorInscriptoEnGanancias) =>
+        regimen.TipoCalculo == TipoCalculoRegimen.EscalaProgresiva && proveedorInscriptoEnGanancias;
 
     /// <summary>
     /// Busca en qué tramo de la escala cae el neto sujeto a retención y

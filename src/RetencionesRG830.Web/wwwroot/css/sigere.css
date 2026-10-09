@@ -765,6 +765,30 @@ a.boton[aria-disabled="true"] {
     border-bottom: 0;
 }
 
+/* El número de certificado es el enlace al detalle de la operación: ocupa el
+   lugar de una columna "Ver detalle" y deja más ancho para los datos. */
+.enlace-certificado {
+    color: var(--color-accion);
+    text-decoration: none;
+}
+
+.enlace-certificado:hover {
+    text-decoration: underline;
+}
+
+/* Nombres largos (cliente, proveedor) en una sola línea, cortados con puntos
+   suspensivos. El nombre completo va en el atributo title y aparece al pasar el
+   mouse. 150px entran unos 22 caracteres: con eso las tablas del listado entran
+   en una pantalla de 1280 sin desplazarse. */
+.recortado {
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
 /* Una operación anulada conserva su fila y su número de certificado, pero
    sus importes van atenuados: no suman al total ni se informan en SICORE. */
 .fila-anulada .importe {
@@ -805,7 +829,8 @@ a.boton[aria-disabled="true"] {
 /* Fuera de las tablas (fichas, resúmenes) también tienen que ir en una
    sola línea. */
 .cuit,
-.fecha {
+.fecha,
+.cifras {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -900,6 +925,12 @@ select.campo-control {
     margin-top: 5px;
     font-size: 11px;
     color: var(--color-anulada-texto);
+}
+
+/* ASP.NET genera el <span> del mensaje aunque no haya error, con la clase
+   field-validation-valid: se oculta para que no deje un hueco debajo del campo. */
+.field-validation-valid {
+    display: none;
 }
 
 .campo-control.input-validation-error {
@@ -1089,6 +1120,32 @@ select.campo-control {
 
 .nota-panel .icono {
     margin-top: 1px;
+}
+
+/* El aviso "completá los campos" va arriba del panel, sin renglones encima. */
+.panel-calculo-espera {
+    margin-top: 14px;
+}
+
+/* Texto corrido dentro de un panel lateral ("Qué pasa al confirmar"). */
+.panel-texto {
+    padding: 12px 17px 4px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--color-texto-atenuado);
+}
+
+.panel-texto p {
+    margin: 0 0 11px;
+}
+
+.panel-texto b {
+    color: var(--color-texto);
+}
+
+/* Resumen de errores al principio de una tarjeta de formulario. */
+.tarjeta-aviso {
+    margin: 17px 18px 0;
 }
 
 
