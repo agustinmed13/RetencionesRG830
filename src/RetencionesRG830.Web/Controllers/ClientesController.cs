@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Infrastructure.Persistencia;
+using RetencionesRG830.Infrastructure.Servicios;
 
 namespace RetencionesRG830.Web.Controllers;
 
@@ -11,10 +12,12 @@ namespace RetencionesRG830.Web.Controllers;
 public class ClientesController : Controller
 {
     private readonly RetencionesRG830DbContext _db;
+    private readonly ServicioClientes _servicio;
 
-    public ClientesController(RetencionesRG830DbContext db)
+    public ClientesController(RetencionesRG830DbContext db, ServicioClientes servicio)
     {
         _db = db;
+        _servicio = servicio;
     }
 
     public async Task<IActionResult> Index()
@@ -67,10 +70,12 @@ public class ClientesController : Controller
         if (!ModelState.IsValid)
             return View(cliente);
 
+        // ServicioClientes copia sólo los campos editables: Activo no se toma del
+        // formulario, que no lo manda. Ver ServicioClientesTests.
+        Cliente? guardado;
         try
         {
-            _db.Clientes.Update(cliente);
-            await _db.SaveChangesAsync();
+            guardado = await _servicio.ActualizarAsync(cliente);
         }
         catch (DbUpdateException)
         {
@@ -78,6 +83,7 @@ public class ClientesController : Controller
             return View(cliente);
         }
 
+        if (guardado is null) return NotFound();
         return RedirectToAction(nameof(Index));
     }
 

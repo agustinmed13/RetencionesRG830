@@ -39,6 +39,7 @@ options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
 
 builder.Services.AddScoped<ServicioRegistroOperaciones>();
 builder.Services.AddScoped<ServicioProveedores>();
+builder.Services.AddScoped<ServicioClientes>();
 builder.Services.AddScoped<GeneradorCertificadoPdf>();
 builder.Services.AddScoped<GeneradorArchivoSicore>();
 // Registramos el sistema de autenticación por cookies: cuando alguien haga
