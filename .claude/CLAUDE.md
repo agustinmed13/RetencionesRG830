@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 53 tests, deben dar todos verde
+dotnet test                                      # 62 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -99,7 +99,7 @@ línea bajo dos configuraciones regionales distintas y verifica que el resultado
 
 ## Tests
 
-53 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+62 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 
@@ -231,6 +231,37 @@ confirme si se permite (y en ese caso, si conviene reactivar al cliente o habili
 sin reactivarlo) o si se bloquea. Si se bloquea, la validación va en el servidor, en el
 registro de la operación, no sólo en la vista: mismo criterio que el filtro por `ClienteId`
 del rol Cliente.
+
+### Pendiente: la regla 9 (vigencia de los regímenes) no está implementada en el cálculo
+
+La regla 9 dice que una operación se calcula con los valores vigentes a su fecha de
+retención. Hoy ningún código del cálculo mira `VigenciaDesde` ni `VigenciaHasta`:
+
+- **El desplegable de régimen no filtra por vigencia.** Nueva operación
+  (`OperacionesController.CargarListas`) y el Simulador listan todas las filas de `Regimen`.
+  Con dos versiones del 78 aparecerían dos opciones con el mismo texto, y se calcularía con
+  la que el operador elija, aunque sea la vieja.
+- **El acumulado agrupa por `RegimenId`, no por código**
+  (`ServicioRegistroOperaciones`, la consulta del acumulado del mes). Si una tasa cambia a
+  mitad de mes, las operaciones del 78 viejo y del 78 nuevo no se acumulan entre sí: el
+  piso se aplicaría dos veces y no se descontaría lo ya retenido.
+
+Eso rompe las reglas 1, 2 y 3 en cuanto exista una segunda versión de un régimen. No se
+nota porque el seed tiene una sola versión por régimen.
+
+Ya existe la pieza que decide cuál rige: `VigenciaRegimen.VersionVigente(versiones, fecha)`
+en Application, con tests. La usa la pantalla de Regímenes y la tiene que usar el arreglo,
+para que pantalla y cálculo no puedan discrepar.
+
+**Lectura del autor, para discutir cuando se encare** (no es una decisión tomada):
+
+- No haría falta cambiar el modelo de datos. La operación debe seguir guardando la versión
+  concreta que se usó (`RegimenId`): es lo que permite auditar con qué valores se calculó.
+- Lo que cambia es que el acumulado agrupe por **código** de régimen y que el desplegable
+  muestre un régimen por código y **resuelva la versión vigente a la fecha de retención**.
+- Como hoy hay una sola versión por régimen, el arreglo tiene que dar exactamente el mismo
+  resultado que ahora: **los golden tests no se tienen que romper. Si se rompen, está mal el
+  arreglo.**
 
 ---
 

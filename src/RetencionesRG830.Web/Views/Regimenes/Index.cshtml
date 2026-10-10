@@ -1,0 +1,209 @@
+@model RetencionesRG830.Web.Models.RegimenesViewModel
+@using RetencionesRG830.Application.Servicios
+@using RetencionesRG830.Domain.Enums
+@*
+    Regímenes. No tiene pantalla propia en docs/prototipo-interfaz.html: se arma con
+    los componentes del listado de operaciones y se compara contra esa pantalla.
+
+    Lo central es que no se pueda leer un valor viejo creyendo que es el actual:
+    - La primera tarjeta tiene sólo la versión que rige hoy de cada régimen. Los
+      valores de otras versiones no están en esa tabla.
+    - Las demás versiones van en otra tarjeta, con su estado: "Histórica" en gris
+      (ya no rige) o "Próxima" en ámbar (cargada, todavía no rige).
+    Cuál rige lo decide VigenciaRegimen (Application), no esta vista.
+
+    El código es el dato principal de cada fila (regimen-destacado), y las columnas
+    se agrupan en Alícuotas y Montos (tabla-grupo).
+*@
+@{
+    ViewData["Title"] = "Regímenes";
+
+    var conEscala = Model.Vigentes
+        .Where(v => v.Version is { TipoCalculo: TipoCalculoRegimen.EscalaProgresiva })
+        .ToList();
+}
+
+<div class="cabecera-pagina">
+    <h1>Regímenes</h1>
+</div>
+
+<p class="subtitulo-pagina">Valores de la RG 830 por código de régimen, vigentes hoy, @Model.Fecha.ToString("dd/MM/yyyy").</p>
+
+<div class="tarjeta">
+    <div class="tarjeta-cabecera">
+        <h2 class="tarjeta-titulo">Regímenes vigentes hoy</h2>
+    </div>
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <colgroup span="1"></colgroup>
+            <colgroup class="tabla-grupo" span="3"></colgroup>
+            <colgroup class="tabla-grupo" span="3"></colgroup>
+            <colgroup class="tabla-grupo" span="1"></colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2">Régimen</th>
+                    <th colspan="3" class="tabla-grupo">Alícuotas</th>
+                    <th colspan="3" class="tabla-grupo">Montos</th>
+                    <th rowspan="2">Vigencia</th>
+                </tr>
+                <tr>
+                    <th class="importe">Inscripto</th>
+                    <th class="importe">No inscr. humana</th>
+                    <th class="importe">No inscr. resto</th>
+                    <th class="importe">No sujeto</th>
+                    <th class="importe">Mín. inscripto</th>
+                    <th class="importe">Mín. no inscr.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Vigentes.Count == 0)
+                {
+                    <tr>
+                        <td class="tabla-vacia" colspan="8">No hay regímenes cargados.</td>
+                    </tr>
+                }
+                @foreach (var fila in Model.Vigentes)
+                {
+                    <tr>
+                        <td>
+                            <div class="regimen-destacado">
+                                <span class="regimen">@fila.Codigo</span>
+                                <span class="texto-atenuado">@fila.Descripcion</span>
+                            </div>
+                        </td>
+                        @if (fila.Version is null)
+                        {
+                            @* El código existe pero hoy no rige ninguna de sus versiones. Se
+                               dice, en lugar de mostrar valores que no corresponden. *@
+                            <td colspan="7">
+                                <span class="tag tag-pendiente">Sin versión vigente</span>
+                                <span class="texto-atenuado">Ninguna versión rige hoy. Ver otras versiones abajo.</span>
+                            </td>
+                        }
+                        else
+                        {
+                            <partial name="_ValoresRegimen" model="fila.Version" />
+                            <td>
+                                <span class="tag tag-vigente">Vigente</span>
+                                <div class="texto-atenuado fecha">desde @fila.Version.VigenciaDesde.ToString("dd/MM/yyyy")</div>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="tarjeta-pie">
+        <span>
+            @Model.Vigentes.Count @(Model.Vigentes.Count == 1 ? "régimen" : "regímenes")
+            @if (Model.OtrasVersiones.Count == 0)
+            {
+                <text>· no hay versiones anteriores ni próximas cargadas</text>
+            }
+        </span>
+    </div>
+</div>
+
+@foreach (var fila in conEscala)
+{
+    var tramos = fila.Version!.Tramos.OrderBy(t => t.Desde).ToList();
+
+    <div class="tarjeta">
+        <div class="tarjeta-cabecera">
+            <h2 class="tarjeta-titulo">Escala del régimen <span class="regimen">@fila.Codigo</span></h2>
+            <span class="tag tag-vigente">Vigente</span>
+        </div>
+        <div class="tarjeta-cuerpo">
+            <p class="texto-atenuado">Se aplica sólo a proveedores inscriptos en Ganancias, sobre el neto sujeto a retención. A los no inscriptos se les aplica la alícuota fija de la tabla de arriba.</p>
+        </div>
+        <div class="tabla-contenedor">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th class="importe">Más de</th>
+                        <th class="importe">Hasta</th>
+                        <th class="importe">Retienen</th>
+                        <th class="importe">Más el</th>
+                        <th class="importe">Sobre el excedente de</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tramo in tramos)
+                    {
+                        <tr>
+                            <td class="importe">@tramo.Desde.ToString("C2")</td>
+                            <td class="importe">@(tramo.Hasta is null ? "en adelante" : tramo.Hasta.Value.ToString("C2"))</td>
+                            <td class="importe">@tramo.MontoFijo.ToString("C2")</td>
+                            <td class="importe">@tramo.Porcentaje.ToString("P2")</td>
+                            <td class="importe">@tramo.Desde.ToString("C2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.OtrasVersiones.Count > 0)
+{
+    <div class="tarjeta">
+        <div class="tarjeta-cabecera">
+            <h2 class="tarjeta-titulo">Otras versiones</h2>
+        </div>
+        <div class="tarjeta-cuerpo">
+            <p class="texto-atenuado">Estos valores <b>no rigen hoy</b>. Las históricas sirven para revisar operaciones anteriores; las próximas, para saber qué cambia y desde cuándo.</p>
+        </div>
+        <div class="tabla-contenedor">
+            <table class="tabla">
+                <colgroup span="1"></colgroup>
+                <colgroup class="tabla-grupo" span="3"></colgroup>
+                <colgroup class="tabla-grupo" span="3"></colgroup>
+                <colgroup class="tabla-grupo" span="1"></colgroup>
+                <thead>
+                    <tr>
+                        <th rowspan="2">Régimen</th>
+                        <th colspan="3" class="tabla-grupo">Alícuotas</th>
+                        <th colspan="3" class="tabla-grupo">Montos</th>
+                        <th rowspan="2">Vigencia</th>
+                    </tr>
+                    <tr>
+                        <th class="importe">Inscripto</th>
+                        <th class="importe">No inscr. humana</th>
+                        <th class="importe">No inscr. resto</th>
+                        <th class="importe">No sujeto</th>
+                        <th class="importe">Mín. inscripto</th>
+                        <th class="importe">Mín. no inscr.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var otra in Model.OtrasVersiones)
+                    {
+                        var v = otra.Version;
+                        <tr>
+                            <td>
+                                <div class="regimen-destacado">
+                                    <span class="regimen">@v.Codigo</span>
+                                    <span class="texto-atenuado">@v.Descripcion</span>
+                                </div>
+                            </td>
+                            <partial name="_ValoresRegimen" model="v" />
+                            <td>
+                                @if (otra.Estado == EstadoVigencia.Proxima)
+                                {
+                                    <span class="tag tag-pendiente">Próxima</span>
+                                }
+                                else
+                                {
+                                    <span class="tag tag-inactivo">Histórica</span>
+                                }
+                                <div class="texto-atenuado fecha">
+                                    desde @v.VigenciaDesde.ToString("dd/MM/yyyy")@if (v.VigenciaHasta is not null){<text> hasta @v.VigenciaHasta.Value.ToString("dd/MM/yyyy")</text>}
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

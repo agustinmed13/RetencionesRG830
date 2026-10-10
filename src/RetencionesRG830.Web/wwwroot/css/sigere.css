@@ -774,6 +774,22 @@ a.boton[aria-disabled="true"] {
     background-color: var(--color-fondo);
 }
 
+/* Grupos de columnas: "Alícuotas" y "Montos" en la pantalla de Regímenes, que
+   son números parecidos y significan cosas muy distintas (un porcentaje y un
+   importe en pesos). La misma clase marca dos cosas:
+   - En un <colgroup>, la línea vertical que separa el grupo del anterior. Con
+     border-collapse: collapse el borde del grupo se dibuja en toda la columna,
+     sin marcar celda por celda dónde empieza.
+   - En un <th>, el encabezado que nombra al grupo, centrado sobre sus columnas. */
+.tabla colgroup.tabla-grupo {
+    border-left: 1px solid var(--color-borde);
+}
+
+.tabla th.tabla-grupo {
+    text-align: center;
+    color: var(--color-texto);
+}
+
 /* Las acciones de una fila tampoco se parten en dos renglones: .acciones
    permite que bajen (sirve fuera de las tablas), pero dentro de una celda eso
    rompería la regla de arriba. Si no entran, se desplaza la tabla. */
@@ -1265,10 +1281,11 @@ select.campo-control {
     color: var(--color-aviso-texto);
 }
 
-/* Baja administrativa (un cliente o proveedor dado de baja). Es gris porque
-   se revierte: el rojo de tag-anulada se reserva para lo que no tiene vuelta
-   atrás (una operación anulada) y el ámbar de tag-pendiente para lo que pide
-   atención. */
+/* No vigente, sin alarma: un cliente o proveedor dado de baja (se revierte), o
+   una versión histórica de un régimen (ya no rige, pero es un dato correcto y
+   sirve para auditar operaciones viejas). El rojo de tag-anulada se reserva
+   para lo que no tiene vuelta atrás (una operación anulada) y el ámbar de
+   tag-pendiente para lo que pide atención (una versión próxima de un régimen). */
 .tag-inactivo {
     background-color: var(--color-inactivo-fondo);
     color: var(--color-inactivo-texto);
@@ -1286,6 +1303,32 @@ select.campo-control {
     font-size: 11.5px;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+}
+
+/* El código de régimen como dato principal de una fila (pantalla de Regímenes):
+   es lo que el operador busca. El mismo .regimen, más grande, con la descripción
+   debajo en gris. La descripción sí puede ocupar dos renglones, a diferencia del
+   resto de las celdas: es texto, no un número que se lea mal cortado, y si fuera
+   en una sola línea las columnas de importes quedarían fuera de la pantalla. */
+.regimen-destacado {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    min-width: 200px;
+    max-width: 280px;
+    white-space: normal;
+}
+
+.regimen-destacado .regimen {
+    padding: 3px 10px;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.regimen-destacado .texto-atenuado {
+    font-size: 11.5px;
+    line-height: 1.35;
 }
 
 

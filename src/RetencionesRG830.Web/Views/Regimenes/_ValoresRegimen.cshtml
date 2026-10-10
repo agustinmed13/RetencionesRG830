@@ -1,0 +1,29 @@
+@model RetencionesRG830.Domain.Entidades.Regimen
+@using RetencionesRG830.Domain.Enums
+@*
+    Las seis celdas de valores de una versión de régimen: tres alícuotas y tres
+    montos. Las usan las dos tablas de la pantalla (vigentes y otras versiones),
+    para que los números se muestren exactamente igual en las dos.
+
+    Cada valor lleva su signo ("2,00 %", "$ 224.000,00"): son números parecidos y
+    significan cosas muy distintas.
+
+    La alícuota de inscriptos de un régimen con escala dice "Escala": la escala se
+    aplica sólo a inscriptos (regla 4). Las de no inscriptos son siempre fijas.
+*@
+
+<td class="importe">
+    @if (Model.TipoCalculo == TipoCalculoRegimen.EscalaProgresiva)
+    {
+        <span title="Se aplica la escala progresiva: ver la tarjeta de la escala">Escala</span>
+    }
+    else
+    {
+        @Model.TasaInscripto.ToString("P2")
+    }
+</td>
+<td class="importe">@Model.TasaNoInscriptoHumana.ToString("P2")</td>
+<td class="importe">@Model.TasaNoInscriptoResto.ToString("P2")</td>
+<td class="importe">@Model.MontoNoSujetoARetencion.ToString("C2")</td>
+<td class="importe">@Model.MinimoRetencion.ToString("C2")</td>
+<td class="importe">@Model.MinimoRetencionNoInscripto.ToString("C2")</td>
