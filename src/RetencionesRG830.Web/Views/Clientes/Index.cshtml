@@ -1,44 +1,107 @@
 @model IEnumerable<RetencionesRG830.Domain.Entidades.Cliente>
+@*
+    Listado de clientes. No tiene pantalla propia en docs/prototipo-interfaz.html:
+    se arma con los componentes del listado de operaciones (tarjeta con tabla,
+    tags de estado, pie con el conteo) y se compara contra esa pantalla.
 
+    Las acciones de cada fila son enlaces, como el "Ver detalle" del prototipo.
+    Dar de baja / Reactivar no cambia nada desde acá: lleva a CambiarActivo, que
+    pide confirmación con nombre y CUIT. Es la única que modifica datos, así que
+    va separada de las otras tres y con otro color (enlace-modifica).
+*@
 @{
     ViewData["Title"] = "Clientes";
+
+    var clientes = Model.ToList();
+    var deBaja = clientes.Count(c => !c.Activo);
+    var activos = clientes.Count - deBaja;
 }
 
-<h1>Clientes</h1>
+<div class="cabecera-pagina">
+    <h1>Clientes</h1>
+    <a class="boton boton-primario" asp-action="Create">
+        <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus" /></svg>Nuevo cliente
+    </a>
+</div>
 
-<p>
-    <a asp-action="Create" class="btn btn-primary">+ Nuevo cliente</a>
-</p>
+<p class="subtitulo-pagina">Los agentes de retención que atiende el estudio.</p>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>CUIT</th>
-            <th>Razón social</th>
-            <th>Localidad</th>
-            <th>Activo</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var cliente in Model)
-    {
-        <tr>
-            <td>@cliente.Cuit</td>
-            <td>@cliente.RazonSocial</td>
-            <td>@cliente.Localidad</td>
-            <td>@(cliente.Activo ? "Sí" : "No")</td>
-            <td>
-                <a asp-controller="Proveedores" asp-action="Index" asp-route-clienteId="@cliente.Id" class="btn btn-sm btn-outline-primary">Ver proveedores</a>
-                <a asp-action="Edit" asp-route-id="@cliente.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                 <a asp-controller="Operaciones" asp-action="Create" asp-route-clienteId="@cliente.Id" class="btn btn-sm btn-outline-success">Nueva operación</a>
-                <form asp-action="CambiarActivo" asp-route-id="@cliente.Id" method="post" style="display:inline">
-                    <button type="submit" class="btn btn-sm btn-outline-warning">
-                        @(cliente.Activo ? "Dar de baja" : "Reactivar")
-                    </button>
-                </form>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+<div class="tarjeta">
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>CUIT</th>
+                    <th>Razón social</th>
+                    <th>Localidad</th>
+                    <th>Estado</th>
+                    <th><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (clientes.Count == 0)
+                {
+                    <tr>
+                        <td class="tabla-vacia" colspan="5">Todavía no hay clientes cargados.</td>
+                    </tr>
+                }
+                @foreach (var cliente in clientes)
+                {
+                    <tr>
+                        <td class="cuit">@cliente.Cuit</td>
+                        <td>@cliente.RazonSocial</td>
+                        <td>@cliente.Localidad</td>
+                        <td>
+                            @if (cliente.Activo)
+                            {
+                                <span class="tag tag-vigente">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="tag tag-inactivo">De baja</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="acciones">
+                                <a class="enlace" asp-controller="Proveedores" asp-action="Index" asp-route-clienteId="@cliente.Id">Proveedores</a>
+                                <a class="enlace" asp-action="Edit" asp-route-id="@cliente.Id">Editar</a>
+                                @* A un cliente de baja no se le ofrece cargar operaciones. Es sólo la
+                                   vista: OperacionesController todavía no lo impide, porque falta que
+                                   el contador confirme la regla (ver .claude/CLAUDE.md). Va última
+                                   del grupo para que, cuando no aparece, Proveedores y Editar sigan
+                                   en el mismo lugar en todas las filas. *@
+                                @if (cliente.Activo)
+                                {
+                                    <a class="enlace" asp-controller="Operaciones" asp-action="Create" asp-route-clienteId="@cliente.Id">Nueva operación</a>
+                                }
+                                @* Cambia datos: va separada de las que navegan, en gris, y abre
+                                   la confirmación en lugar de dar de baja directamente. *@
+                                <a class="enlace enlace-modifica" asp-action="CambiarActivo" asp-route-id="@cliente.Id">
+                                    @(cliente.Activo ? "Dar de baja" : "Reactivar")
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="tarjeta-pie">
+        @* Cada número dice de qué es ("1 activo · 1 de baja"): con "2 clientes ·
+           1 dado de baja" no se sabía si el total incluía al de baja. El grupo que
+           tiene cero no se nombra. *@
+        <span>
+            @if (clientes.Count == 0)
+            {
+                <text>0 clientes</text>
+            }
+            else
+            {
+                var partes = new List<string>();
+                if (activos > 0) partes.Add($"{activos} {(activos == 1 ? "activo" : "activos")}");
+                if (deBaja > 0) partes.Add($"{deBaja} de baja");
+                @string.Join(" · ", partes)
+            }
+        </span>
+    </div>
+</div>

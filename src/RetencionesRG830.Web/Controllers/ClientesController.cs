@@ -81,13 +81,31 @@ public class ClientesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [HttpPost]
+    /// <summary>
+    /// Pantalla de confirmación de la baja o la reactivación. No cambia nada:
+    /// muestra con nombre y CUIT qué cliente se va a modificar, para que un clic
+    /// en la fila equivocada del listado no tenga efecto por sí solo.
+    /// </summary>
     public async Task<IActionResult> CambiarActivo(int id)
     {
         var cliente = await _db.Clientes.FindAsync(id);
         if (cliente is null) return NotFound();
+        return View(cliente);
+    }
 
-        cliente.Activo = !cliente.Activo;
+    /// <summary>
+    /// Recibe el estado que se confirmó (activo o no) en lugar de invertir el
+    /// actual. Si el formulario se envía dos veces, o se reenvía con "Atrás" del
+    /// navegador, el cliente queda en el estado que se confirmó y no vuelve al
+    /// anterior.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> CambiarActivo(int id, bool activo)
+    {
+        var cliente = await _db.Clientes.FindAsync(id);
+        if (cliente is null) return NotFound();
+
+        cliente.Activo = activo;
         await _db.SaveChangesAsync();
         return RedirectToAction(nameof(Index));
     }

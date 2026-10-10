@@ -50,6 +50,8 @@
     --color-aviso-fondo: #FDF0D9;
     --color-aviso-texto: #8A5A0B;
     --color-aviso-borde: #F0D9A8;
+    --color-inactivo-fondo: #E8ECF2;    /* baja administrativa: se revierte */
+    --color-inactivo-texto: #475569;
 
     /* Detalles del cálculo y los formularios */
     --color-resta: #B04A2E;             /* renglones que restan en el desglose */
@@ -526,6 +528,24 @@ a.boton[aria-disabled="true"] {
     text-decoration: underline;
 }
 
+/* Enlace a una acción que modifica datos (dar de baja, reactivar), en una
+   fila donde las demás sólo navegan. Se distingue de dos maneras, porque una
+   sola no alcanza cuando se apunta rápido con el mouse:
+   - Una línea vertical la separa del grupo, así queda más lejos y no se
+     confunde con el enlace de al lado.
+   - Va en gris y no en azul: el azul es "ir a otra pantalla"; el gris dice
+     que esto es otra cosa sin alarmar (el rojo queda para lo irreversible).
+   Igual nunca modifica directamente: lleva a una pantalla de confirmación. */
+.enlace-modifica {
+    padding-left: 11px;
+    border-left: 1px solid var(--color-borde);
+    color: var(--color-texto-atenuado);
+}
+
+.enlace-modifica:hover {
+    color: var(--color-texto);
+}
+
 
 /* -------------------------------------------------------------------------
    8. Tarjetas
@@ -752,6 +772,13 @@ a.boton[aria-disabled="true"] {
 
 .tabla tbody tr:hover {
     background-color: var(--color-fondo);
+}
+
+/* Las acciones de una fila tampoco se parten en dos renglones: .acciones
+   permite que bajen (sirve fuera de las tablas), pero dentro de una celda eso
+   rompería la regla de arriba. Si no entran, se desplaza la tabla. */
+.tabla .acciones {
+    flex-wrap: nowrap;
 }
 
 .tabla tbody tr:last-child td {
@@ -1236,6 +1263,15 @@ select.campo-control {
 .tag-pendiente {
     background-color: var(--color-aviso-fondo);
     color: var(--color-aviso-texto);
+}
+
+/* Baja administrativa (un cliente o proveedor dado de baja). Es gris porque
+   se revierte: el rojo de tag-anulada se reserva para lo que no tiene vuelta
+   atrás (una operación anulada) y el ámbar de tag-pendiente para lo que pide
+   atención. */
+.tag-inactivo {
+    background-color: var(--color-inactivo-fondo);
+    color: var(--color-inactivo-texto);
 }
 
 /* Código de régimen (78, 94, 116, 31). Se muestra el código, no "RG 830":

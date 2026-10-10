@@ -218,6 +218,20 @@ Falta que el contador del estudio confirme ese criterio. Si dijera que el mismo 
 no puede repetirse, el control está en `ServicioRegistroOperaciones.OperacionesConMismoComprobanteAsync`
 y pasaría de aviso a validación.
 
+### Pendiente de confirmar con el contador: operaciones de un cliente dado de baja
+
+Hoy dar de baja un cliente sólo lo saca del selector de SICORE y de la interfaz: el listado
+de Clientes no ofrece "Nueva operación" en su fila. Pero **el servidor no lo impide**:
+`OperacionesController` acepta registrar una operación para un cliente de baja si se llega
+por la URL.
+
+No se agregó la validación a propósito. Puede aparecer una operación atrasada de un cliente
+al que el estudio dejó de atender, y habría que poder registrarla. Falta que el contador
+confirme si se permite (y en ese caso, si conviene reactivar al cliente o habilitar la carga
+sin reactivarlo) o si se bloquea. Si se bloquea, la validación va en el servidor, en el
+registro de la operación, no sólo en la vista: mismo criterio que el filtro por `ClienteId`
+del rol Cliente.
+
 ---
 
 ## Riesgo abierto más importante

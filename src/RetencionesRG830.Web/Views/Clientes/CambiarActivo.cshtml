@@ -1,0 +1,82 @@
+@model RetencionesRG830.Domain.Entidades.Cliente
+@*
+    Confirmación de la baja o la reactivación de un cliente. Sigue el patrón de
+    Operaciones/Confirmar: aviso de que todavía no cambió nada, los datos en una
+    tarjeta, el botón que escribe en la base al pie y, al costado, qué va a pasar.
+
+    Existe porque en el listado la acción estaba a milímetros de las que sólo
+    navegan: ahora el clic en la fila abre esta pantalla, que dice con nombre y
+    CUIT qué cliente se modifica, y recién el botón de acá lo cambia.
+
+    El formulario manda el estado nuevo (activo=true o false), no "invertir el
+    actual": ver ClientesController.CambiarActivo.
+*@
+@{
+    var esBaja = Model.Activo;
+    var titulo = esBaja ? "Dar de baja un cliente" : "Reactivar un cliente";
+    ViewData["Title"] = titulo;
+}
+
+<ol class="migas">
+    <li><a asp-action="Index">Clientes</a></li>
+    <li>@(esBaja ? "Dar de baja" : "Reactivar")</li>
+</ol>
+<h1>@titulo</h1>
+
+<div class="aviso" role="note">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span>
+        Vas a @(esBaja ? "dar de baja a" : "reactivar a") <b>@Model.RazonSocial</b>, CUIT <b class="cuit">@Model.Cuit</b>.
+        Todavía no se cambió nada.
+    </span>
+</div>
+
+<div class="dos-columnas">
+    <div class="tarjeta">
+        <div class="resumen">
+            <div class="dato"><div class="etiqueta">Razón social</div><div class="valor">@Model.RazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">CUIT</div><div class="valor cuit">@Model.Cuit</div></div>
+            <div class="dato"><div class="etiqueta">Localidad</div><div class="valor">@Model.Localidad</div></div>
+            <div class="dato">
+                <div class="etiqueta">Estado</div>
+                <div class="valor">
+                    @if (esBaja)
+                    {
+                        <span class="tag tag-vigente">Activo</span><text> → </text><span class="tag tag-inactivo">De baja</span>
+                    }
+                    else
+                    {
+                        <span class="tag tag-inactivo">De baja</span><text> → </text><span class="tag tag-vigente">Activo</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <form asp-action="CambiarActivo" asp-route-id="@Model.Id" method="post" class="pie-formulario">
+            <input type="hidden" name="activo" value="@(esBaja ? "false" : "true")" />
+            <a class="boton boton-neutro" asp-action="Index">Cancelar</a>
+            <button type="submit" class="boton boton-primario">
+                <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-check" /></svg>@(esBaja ? "Confirmar la baja" : "Confirmar la reactivación")
+            </button>
+        </form>
+    </div>
+
+    <aside class="tarjeta panel-calculo" aria-label="Qué pasa al confirmar">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué pasa al confirmar
+        </h2>
+        <div class="panel-texto">
+            @if (esBaja)
+            {
+                <p>El cliente deja de aparecer en la lista para generar el <b>archivo de SICORE</b>.</p>
+                <p>Sus proveedores, operaciones y certificados <b>se conservan</b> sin cambios: una baja no borra nada.</p>
+                <p>Se puede reactivar en cualquier momento desde el listado de clientes.</p>
+            }
+            else
+            {
+                <p>El cliente vuelve a aparecer en la lista para generar el <b>archivo de SICORE</b>.</p>
+                <p>Sus proveedores, operaciones y certificados son los mismos que tenía: la baja no los había tocado.</p>
+            }
+        </div>
+    </aside>
+</div>

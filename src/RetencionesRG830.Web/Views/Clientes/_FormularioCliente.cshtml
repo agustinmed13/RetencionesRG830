@@ -1,0 +1,103 @@
+@model RetencionesRG830.Domain.Entidades.Cliente
+@*
+    Formulario de cliente, compartido por el alta (Create) y la edición (Edit).
+    Las dos pantallas tenían los mismos seis campos copiados; si se agrega uno,
+    se agrega acá una sola vez.
+
+    Se compara contra "Nueva operación" del prototipo: formulario en una tarjeta
+    con secciones a la izquierda y panel informativo a la derecha (el mismo que
+    usa la confirmación, "Qué pasa al confirmar"). El panel además le da al
+    formulario el ancho del prototipo: a lo ancho de toda la página, cada campo
+    quedaría de casi 600px para cargar un CUIT de 13 caracteres.
+
+    El formulario se envía a la misma acción que lo mostró (Create o Edit). El Id
+    va oculto sólo al editar: un cliente nuevo todavía no tiene.
+*@
+@{
+    var accion = ViewContext.RouteData.Values["action"]?.ToString();
+    var esAlta = Model.Id == 0;
+}
+
+<div class="dos-columnas">
+    @* data-enter-siguiente: Enter pasa al campo siguiente y no envía (ver site.js). *@
+    <form asp-action="@accion" method="post" class="tarjeta" data-enter-siguiente>
+        @if (!esAlta)
+        {
+            <input type="hidden" asp-for="Id" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-users" /></svg>Agente de retención
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="Cuit">CUIT <span class="requerido">*</span></label>
+                    <input asp-for="Cuit" class="campo-control cuit" placeholder="20-12345678-6" />
+                    <div class="campo-ayuda">Con guiones. Se controla el dígito verificador.</div>
+                    <span asp-validation-for="Cuit" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="RazonSocial">Razón social <span class="requerido">*</span></label>
+                    <input asp-for="RazonSocial" class="campo-control" />
+                    <span asp-validation-for="RazonSocial" class="campo-error"></span>
+                </div>
+            </div>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="Domicilio">Domicilio</label>
+                    <input asp-for="Domicilio" class="campo-control" />
+                    <span asp-validation-for="Domicilio" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="Localidad">Localidad y provincia</label>
+                    <input asp-for="Localidad" class="campo-control" placeholder="Salta - SALTA" />
+                    <span asp-validation-for="Localidad" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-file" /></svg>Firmante del certificado
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="NombreFirmante">Nombre del firmante</label>
+                    <input asp-for="NombreFirmante" class="campo-control" />
+                    <span asp-validation-for="NombreFirmante" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="CargoFirmante">Cargo del firmante</label>
+                    <input asp-for="CargoFirmante" class="campo-control" placeholder="Presidente, socio gerente..." />
+                    <span asp-validation-for="CargoFirmante" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="pie-formulario">
+            <a class="boton boton-neutro" asp-action="Index">Cancelar</a>
+            <button type="submit" class="boton boton-primario">@(esAlta ? "Guardar cliente" : "Guardar cambios")</button>
+        </div>
+    </form>
+
+    <aside class="tarjeta panel-calculo" aria-label="Para qué se usan estos datos">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Para qué se usan estos datos
+        </h2>
+        <div class="panel-texto">
+            <p>El cliente es el <b>agente de retención</b>: la empresa que retiene Ganancias a sus proveedores y emite los certificados.</p>
+            <p>CUIT, razón social, domicilio y localidad se imprimen como datos del agente en cada <b>certificado de retención</b>. El firmante y su cargo van al pie.</p>
+            <p>No puede haber dos clientes con el mismo CUIT.</p>
+        </div>
+        @if (!esAlta)
+        {
+            <div class="nota-panel">
+                <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+                <span>Un cliente no se borra: se da de baja desde el listado y conserva sus proveedores, operaciones y certificados.</span>
+            </div>
+        }
+    </aside>
+</div>
