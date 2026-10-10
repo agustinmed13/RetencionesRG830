@@ -17,6 +17,39 @@ public class ServicioProveedores
     }
 
     /// <summary>
+    /// Da de alta un proveedor y lo devuelve ya guardado, con su Id.
+    ///
+    /// Arma un Proveedor nuevo copiando uno por uno los campos que ofrece el
+    /// formulario. Es la única vez que se toma el ClienteId: en el alta se elige
+    /// el cliente, en la edición no. No se guarda el objeto recibido, porque con
+    /// _db.Proveedores.Add(datos) se colaba todo lo que viniera en el POST:
+    /// - Id y Activo.
+    /// - Cliente: un POST con Cliente.Cuit, Cliente.RazonSocial... creaba un
+    ///   cliente nuevo y le asignaba el proveedor.
+    /// - Operaciones: un POST con Operaciones[0].MontoRetenido,
+    ///   Operaciones[0].NumeroCertificado... creaba una operación sin pasar por el
+    ///   motor de cálculo ni por la confirmación. Un documento fiscal que después
+    ///   no se puede borrar.
+    /// </summary>
+    public async Task<Proveedor> CrearAsync(Proveedor datos)
+    {
+        var proveedor = new Proveedor
+        {
+            ClienteId = datos.ClienteId,
+            Cuit = datos.Cuit,
+            RazonSocial = datos.RazonSocial,
+            Domicilio = datos.Domicilio,
+            Localidad = datos.Localidad,
+            InscriptoEnGanancias = datos.InscriptoEnGanancias,
+            TipoPersona = datos.TipoPersona
+        };
+
+        _db.Proveedores.Add(proveedor);
+        await _db.SaveChangesAsync();
+        return proveedor;
+    }
+
+    /// <summary>
     /// Guarda los cambios de un proveedor existente y lo devuelve tal como quedó
     /// en la base, o null si no existe.
     ///

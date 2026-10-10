@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 31 tests, deben dar todos verde
+dotnet test                                      # 53 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -99,7 +99,7 @@ línea bajo dos configuraciones regionales distintas y verifica que el resultado
 
 ## Tests
 
-31 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+53 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 
@@ -254,6 +254,13 @@ tribunal académico.
 - Antes de agregar una regla de cálculo, verificar contra la planilla original y los tests.
 - No introducir dependencias nuevas sin motivo claro. Las actuales son EF Core, QuestPDF y
   xUnit.
+- **Nunca guardar una entidad armada directamente con lo que llega de un formulario**, ni en
+  el alta (`Add`) ni en la edición (`Update`). Se hace en un servicio que arma o carga la
+  entidad y copia campo por campo sólo lo que el formulario ofrece, con un test que lo
+  demuestre (ver `ServicioClientes` y `ServicioProveedores`). Por qué: ASP.NET llena el
+  objeto con todo lo que venga en el POST, y así editar un proveedor lo mudaba de cliente
+  (y reactivaba lo dado de baja), y un alta armada a mano podía crear una operación con
+  importe y certificado inventados, sin pasar por el motor ni por la confirmación.
 
 Se trabaja en dos máquinas sincronizadas por Git: `git pull` al empezar, `git push` al
 terminar.

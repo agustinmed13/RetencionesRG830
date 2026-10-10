@@ -57,10 +57,13 @@ public class ProveedoresController : Controller
             return View(proveedor);
         }
 
+        // ServicioProveedores arma el proveedor nuevo campo por campo: no se guarda el
+        // objeto del POST, que puede traer Id, Activo, un Cliente u operaciones.
+        // Ver ServicioProveedoresTests.
+        Proveedor creado;
         try
         {
-            _db.Proveedores.Add(proveedor);
-            await _db.SaveChangesAsync();
+            creado = await _servicio.CrearAsync(proveedor);
         }
         catch (DbUpdateException)
         {
@@ -69,7 +72,7 @@ public class ProveedoresController : Controller
             return View(proveedor);
         }
 
-        return RedirectToAction(nameof(Index), new { clienteId = proveedor.ClienteId });
+        return RedirectToAction(nameof(Index), new { clienteId = creado.ClienteId });
     }
 
     public async Task<IActionResult> Edit(int id)

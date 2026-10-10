@@ -40,10 +40,11 @@ public class ClientesController : Controller
         if (!ModelState.IsValid)
             return View(cliente);
 
+        // ServicioClientes arma el cliente nuevo campo por campo: no se guarda el
+        // objeto del POST, que puede traer Id, Activo o usuarios. Ver ServicioClientesTests.
         try
         {
-            _db.Clientes.Add(cliente);
-            await _db.SaveChangesAsync();
+            await _servicio.CrearAsync(cliente);
         }
         catch (DbUpdateException)
         {

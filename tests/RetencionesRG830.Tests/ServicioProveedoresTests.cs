@@ -25,6 +25,7 @@ public class ServicioProveedoresTests : IDisposable
     private int _clienteOriginalId;
     private int _otroClienteId;
     private int _proveedorId;
+    private int _regimenId;
 
     public ServicioProveedoresTests()
     {
@@ -71,11 +72,29 @@ public class ServicioProveedoresTests : IDisposable
             Activo = false
         };
         db.Proveedores.Add(proveedor);
+
+        // Sólo para que la operación que intentan colar los tests de alta sea
+        // válida: si no, el código viejo fallaría por la clave foránea y no por
+        // el agujero, y el test no probaría nada.
+        var regimen = new Regimen
+        {
+            Codigo = 78,
+            Descripcion = "Enajenación de bienes muebles y bienes de cambio.",
+            TipoCalculo = TipoCalculoRegimen.TasaFija,
+            TasaInscripto = 0.02m,
+            TasaNoInscriptoHumana = 0.10m,
+            TasaNoInscriptoResto = 0.10m,
+            MontoNoSujetoARetencion = 224000m,
+            MinimoRetencion = 240m,
+            VigenciaDesde = new DateOnly(2026, 1, 1)
+        };
+        db.Regimenes.Add(regimen);
         db.SaveChanges();
 
         _clienteOriginalId = clienteOriginal.Id;
         _otroClienteId = otroCliente.Id;
         _proveedorId = proveedor.Id;
+        _regimenId = regimen.Id;
     }
 
     /// <summary>
@@ -140,5 +159,115 @@ public class ServicioProveedoresTests : IDisposable
         datos.Id = 9999;
 
         Assert.Null(await new ServicioProveedores(db).ActualizarAsync(datos));
+    }
+
+    // --- Alta ---------------------------------------------------------------
+    // Antes el controlador guardaba con _db.Proveedores.Add() el objeto armado con
+    // el POST, y se colaba todo lo que viniera, aunque el formulario no lo ofrezca.
+
+    private const string CuitAlta = "27-32567894-7";
+
+    /// <summary>Lo que el formulario de alta ofrece de verdad.</summary>
+    private Proveedor AltaRecibida() => new()
+    {
+        ClienteId = _otroClienteId,
+        Cuit = CuitAlta,
+        RazonSocial = "Ramírez, Laura Beatriz",
+        Domicilio = "Rivadavia 88",
+        Localidad = "Salta - SALTA",
+        InscriptoEnGanancias = false,
+        TipoPersona = TipoPersona.Resto
+    };
+
+    private async Task<Proveedor> Crear(Proveedor datos)
+    {
+        using var db = new RetencionesRG830DbContext(_opciones);
+        return await new ServicioProveedores(db).CrearAsync(datos);
+    }
+
+    /// <summary>
+    /// Lee el proveedor dado de alta con un contexto nuevo, por el CUIT: si el
+    /// código viejo hubiera forzado otro Id, buscarlo por Id escondería el problema.
+    /// </summary>
+    private Proveedor LeerAlta()
+    {
+        using var db = new RetencionesRG830DbContext(_opciones);
+        return db.Proveedores.Single(p => p.Cuit == CuitAlta);
+    }
+
+    [Fact]
+    public async Task Alta_con_Operaciones_no_crea_ninguna_operacion()
+    {
+        var datos = AltaRecibida();
+        // Una operación completa y válida, con importes y número de certificado
+        // inventados, como podría venir en un POST armado a mano con
+        // Operaciones[0].MontoRetenido=..., Operaciones[0].NumeroCertificado=...
+        datos.Operaciones.Add(new Operacion
+        {
+            ClienteId = _otroClienteId,
+            RegimenId = _regimenId,
+            TipoComprobante = 1,
+            PuntoVenta = 3,
+            NumeroComprobante = 12847,
+            FechaComprobante = new DateOnly(2026, 9, 22),
+            FechaRetencion = new DateOnly(2026, 9, 22),
+            ImporteComprobante = 2000000m,
+            ImporteGravado = 2000000m,
+            BaseCalculoAcumulada = 2000000m,
+            MontoRetenido = 1m,
+            NumeroCertificado = 1,
+            CreadoPorUsuarioId = 1,
+            FechaCarga = new DateTime(2026, 9, 22)
+        });
+
+        await Crear(datos);
+
+        using var db = new RetencionesRG830DbContext(_opciones);
+        Assert.Equal(0, db.Operaciones.Count());
+        // El proveedor sí se dio de alta, con los datos del formulario.
+        var creado = LeerAlta();
+        Assert.Equal(_otroClienteId, creado.ClienteId);
+        Assert.Equal("Ramírez, Laura Beatriz", creado.RazonSocial);
+        Assert.False(creado.InscriptoEnGanancias);
+        Assert.Equal(TipoPersona.Resto, creado.TipoPersona);
+    }
+
+    [Fact]
+    public async Task Alta_con_un_Cliente_no_crea_un_cliente_nuevo()
+    {
+        var datos = AltaRecibida();
+        datos.Cliente = new Cliente
+        {
+            Cuit = "30-70000000-1",
+            RazonSocial = "Cliente colado S.A."
+        };
+
+        await Crear(datos);
+
+        using var db = new RetencionesRG830DbContext(_opciones);
+        Assert.Equal(2, db.Clientes.Count());
+        Assert.Equal(_otroClienteId, LeerAlta().ClienteId);
+    }
+
+    [Fact]
+    public async Task Alta_no_toma_Activo_del_formulario()
+    {
+        var datos = AltaRecibida();
+        datos.Activo = false;
+
+        await Crear(datos);
+
+        Assert.True(LeerAlta().Activo);
+    }
+
+    [Fact]
+    public async Task Alta_no_toma_Id_del_formulario()
+    {
+        var datos = AltaRecibida();
+        datos.Id = 500;
+
+        await Crear(datos);
+
+        Assert.NotEqual(500, LeerAlta().Id);
     }
 }
