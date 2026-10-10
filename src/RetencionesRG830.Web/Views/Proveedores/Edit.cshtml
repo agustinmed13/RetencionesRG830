@@ -1,53 +1,31 @@
 @model RetencionesRG830.Domain.Entidades.Proveedor
+@*
+    Edición de proveedor. El formulario está en _FormularioProveedor.cshtml.
 
+    El cliente se muestra como texto en la banda, igual que en "Nueva operación":
+    es parte de la identidad del proveedor y no se edita. Se lee de la base (el
+    controlador carga Cliente), nunca del formulario. Si está de baja se dice, para
+    que se entienda por qué no aparece en otras listas.
+*@
 @{
     ViewData["Title"] = "Editar proveedor";
 }
 
+<ol class="migas">
+    <li><a asp-action="Index" asp-route-clienteId="@Model.ClienteId">Proveedores</a></li>
+    <li>Editar proveedor</li>
+</ol>
 <h1>Editar proveedor</h1>
 
-<form asp-action="Edit" method="post">
-    <input type="hidden" asp-for="Id" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div class="banda">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-users" /></svg>
+    <span>
+        Agente de retención: <b>@Model.Cliente?.RazonSocial</b>@if (Model.Cliente is not null){<text> · CUIT <span class="cuit">@Model.Cliente.Cuit</span></text>}
+    </span>
+    @if (Model.Cliente is { Activo: false })
+    {
+        <span class="tag tag-inactivo">De baja</span>
+    }
+</div>
 
-    <div class="mb-3">
-        <label class="form-label">Cliente</label>
-        <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select"></select>
-        <span asp-validation-for="ClienteId" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Cuit" class="form-label"></label>
-        <input asp-for="Cuit" class="form-control" />
-        <span asp-validation-for="Cuit" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="RazonSocial" class="form-label"></label>
-        <input asp-for="RazonSocial" class="form-control" />
-        <span asp-validation-for="RazonSocial" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Domicilio" class="form-label"></label>
-        <input asp-for="Domicilio" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Localidad" class="form-label"></label>
-        <input asp-for="Localidad" class="form-control" />
-    </div>
-
-    <div class="mb-3 form-check">
-        <input asp-for="InscriptoEnGanancias" class="form-check-input" />
-        <label asp-for="InscriptoEnGanancias" class="form-check-label"></label>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="TipoPersona" class="form-label"></label>
-        <select asp-for="TipoPersona" asp-items="Html.GetEnumSelectList<RetencionesRG830.Domain.Enums.TipoPersona>()" class="form-select"></select>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>
+<partial name="_FormularioProveedor" model="Model" />

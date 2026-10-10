@@ -1,0 +1,129 @@
+@model RetencionesRG830.Domain.Entidades.Proveedor
+@using RetencionesRG830.Domain.Enums
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Formulario de proveedor, compartido por el alta (Create) y la edición (Edit).
+    Mismo armado que el de Clientes: tarjeta con secciones y panel informativo,
+    comparado contra "Nueva operación" del prototipo.
+
+    El cliente se elige sólo en el alta. En la edición no hay control de cliente:
+    la vista Edit lo muestra como texto en la banda de arriba, y el servidor
+    ignora cualquier ClienteId que llegue (ServicioProveedores.ActualizarAsync).
+    Antes era un desplegable que sólo listaba clientes activos: con el cliente
+    del proveedor dado de baja mostraba otro, y al guardar el proveedor se mudaba.
+*@
+@{
+    var accion = ViewContext.RouteData.Values["action"]?.ToString();
+    var esAlta = Model.Id == 0;
+}
+
+<div class="dos-columnas">
+    @* data-enter-siguiente: Enter pasa al campo siguiente y no envía (ver site.js). *@
+    <form asp-action="@accion" method="post" class="tarjeta" data-enter-siguiente>
+        @if (!esAlta)
+        {
+            <input type="hidden" asp-for="Id" />
+        }
+
+        <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
+
+        @if (esAlta)
+        {
+            <section class="tarjeta-seccion">
+                <h2 class="tarjeta-seccion-titulo">
+                    <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-users" /></svg>Agente de retención
+                </h2>
+                <div class="campo">
+                    <label for="ClienteId">Cliente <span class="requerido">*</span></label>
+                    <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="campo-control">
+                        <option value="">Elegí un cliente</option>
+                    </select>
+                    <div class="campo-ayuda">Un proveedor pertenece a un solo cliente y después no se puede cambiar.</div>
+                    <span asp-validation-for="ClienteId" class="campo-error"></span>
+                </div>
+            </section>
+        }
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-truck" /></svg>Proveedor
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="Cuit">CUIT <span class="requerido">*</span></label>
+                    <input asp-for="Cuit" class="campo-control cuit" placeholder="20-12345678-6" />
+                    <div class="campo-ayuda">Con guiones. Se controla el dígito verificador.</div>
+                    <span asp-validation-for="Cuit" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="RazonSocial">Razón social <span class="requerido">*</span></label>
+                    <input asp-for="RazonSocial" class="campo-control" />
+                    <span asp-validation-for="RazonSocial" class="campo-error"></span>
+                </div>
+            </div>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="Domicilio">Domicilio</label>
+                    <input asp-for="Domicilio" class="campo-control" />
+                    <span asp-validation-for="Domicilio" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="Localidad">Localidad y provincia</label>
+                    <input asp-for="Localidad" class="campo-control" placeholder="Salta - SALTA" />
+                    <span asp-validation-for="Localidad" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Situación ante Ganancias
+            </h2>
+            <div class="rejilla rejilla-2">
+                @* Desplegable y no casilla: "No inscripto" queda escrito en lugar de ser
+                   una casilla vacía que se pasa por alto, y es el dato que decide si se
+                   aplica la escala o la alícuota fija (regla 4). *@
+                <div class="campo">
+                    <label for="InscriptoEnGanancias">Inscripción en Ganancias</label>
+                    <select asp-for="InscriptoEnGanancias" class="campo-control">
+                        <option value="true">Inscripto</option>
+                        <option value="false">No inscripto</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="TipoPersona">Tipo de persona</label>
+                    <select asp-for="TipoPersona" class="campo-control">
+                        @foreach (var tipo in Enum.GetValues<TipoPersona>())
+                        {
+                            <option value="@tipo">@FormatoProveedor.TipoPersonaParaElegir(tipo)</option>
+                        }
+                    </select>
+                    <div class="campo-ayuda">Sólo se usa cuando el proveedor no está inscripto.</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="pie-formulario">
+            <a class="boton boton-neutro" asp-action="Index" asp-route-clienteId="@(Model.ClienteId > 0 ? Model.ClienteId : null)">Cancelar</a>
+            <button type="submit" class="boton boton-primario">@(esAlta ? "Guardar proveedor" : "Guardar cambios")</button>
+        </div>
+    </form>
+
+    <aside class="tarjeta panel-calculo" aria-label="Para qué se usan estos datos">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Para qué se usan estos datos
+        </h2>
+        <div class="panel-texto">
+            <p>El proveedor es el <b>sujeto retenido</b>: a quien el agente de retención le retiene Ganancias. CUIT, razón social, domicilio y localidad se imprimen en el certificado.</p>
+            <p>La <b>situación ante Ganancias</b> define la alícuota. A un inscripto se le aplica la de inscriptos, o la escala si el régimen la tiene. A un no inscripto, la fija que corresponde a su tipo de persona.</p>
+            <p>Un cliente no puede tener dos proveedores con el mismo CUIT.</p>
+        </div>
+        @if (!esAlta)
+        {
+            <div class="nota-panel">
+                <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+                <span>El cliente no se cambia: un proveedor pertenece a uno solo. Si se cargó en el cliente equivocado, se da de baja y se carga de nuevo en el que corresponde.</span>
+            </div>
+        }
+    </aside>
+</div>

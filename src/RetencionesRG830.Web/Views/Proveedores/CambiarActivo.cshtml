@@ -1,0 +1,85 @@
+@model RetencionesRG830.Domain.Entidades.Proveedor
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Confirmación de la baja o la reactivación de un proveedor. Mismo patrón que
+    Clientes/CambiarActivo: no cambia nada hasta el botón, dice con nombre y CUIT
+    qué proveedor se modifica, y el formulario manda el estado nuevo en lugar de
+    "invertir el actual" (ver ProveedoresController.CambiarActivo).
+*@
+@{
+    var esBaja = Model.Activo;
+    var titulo = esBaja ? "Dar de baja un proveedor" : "Reactivar un proveedor";
+    ViewData["Title"] = titulo;
+
+    // La razón social cierra la oración del aviso, y muchas terminan en una
+    // abreviatura ("S.A.", "S.R.L."). Como en cualquier texto en español, el punto
+    // de la abreviatura sirve de punto final: se agrega sólo si no termina en punto.
+    // Si no, queda "Metalúrgica del Valle S.A..".
+    var cliente = Model.Cliente?.RazonSocial ?? "";
+    var clienteFinDeOracion = cliente.EndsWith('.') ? cliente : cliente + ".";
+}
+
+<ol class="migas">
+    <li><a asp-action="Index" asp-route-clienteId="@Model.ClienteId">Proveedores</a></li>
+    <li>@(esBaja ? "Dar de baja" : "Reactivar")</li>
+</ol>
+<h1>@titulo</h1>
+
+<div class="aviso" role="note">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span>
+        Vas a @(esBaja ? "dar de baja a" : "reactivar a") <b>@Model.RazonSocial</b>, CUIT <b class="cuit">@Model.Cuit</b>,
+        proveedor de @clienteFinDeOracion Todavía no se cambió nada.
+    </span>
+</div>
+
+<div class="dos-columnas">
+    <div class="tarjeta">
+        <div class="resumen">
+            <div class="dato"><div class="etiqueta">Razón social</div><div class="valor">@Model.RazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">CUIT</div><div class="valor cuit">@Model.Cuit</div></div>
+            <div class="dato"><div class="etiqueta">Agente de retención</div><div class="valor">@Model.Cliente?.RazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">Condición</div><div class="valor">@FormatoProveedor.Condicion(Model)</div></div>
+            <div class="dato">
+                <div class="etiqueta">Estado</div>
+                <div class="valor">
+                    @if (esBaja)
+                    {
+                        <span class="tag tag-vigente">Activo</span><text> → </text><span class="tag tag-inactivo">De baja</span>
+                    }
+                    else
+                    {
+                        <span class="tag tag-inactivo">De baja</span><text> → </text><span class="tag tag-vigente">Activo</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <form asp-action="CambiarActivo" asp-route-id="@Model.Id" method="post" class="pie-formulario">
+            <input type="hidden" name="activo" value="@(esBaja ? "false" : "true")" />
+            <a class="boton boton-neutro" asp-action="Index" asp-route-clienteId="@Model.ClienteId">Cancelar</a>
+            <button type="submit" class="boton boton-primario">
+                <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-check" /></svg>@(esBaja ? "Confirmar la baja" : "Confirmar la reactivación")
+            </button>
+        </form>
+    </div>
+
+    <aside class="tarjeta panel-calculo" aria-label="Qué pasa al confirmar">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué pasa al confirmar
+        </h2>
+        <div class="panel-texto">
+            @if (esBaja)
+            {
+                <p>El proveedor deja de aparecer para elegir en <b>Nueva operación</b>.</p>
+                <p>Sus operaciones y certificados <b>se conservan</b> sin cambios: una baja no borra nada.</p>
+                <p>Se puede reactivar en cualquier momento desde el listado de proveedores.</p>
+            }
+            else
+            {
+                <p>El proveedor vuelve a aparecer para elegir en <b>Nueva operación</b>.</p>
+                <p>Sus operaciones y certificados son los mismos que tenía: la baja no los había tocado.</p>
+            }
+        </div>
+    </aside>
+</div>

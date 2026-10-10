@@ -1,55 +1,13 @@
 @model RetencionesRG830.Domain.Entidades.Proveedor
-
+@* Alta de proveedor. El formulario está en _FormularioProveedor.cshtml. *@
 @{
     ViewData["Title"] = "Nuevo proveedor";
 }
 
+<ol class="migas">
+    <li><a asp-action="Index" asp-route-clienteId="@(Model.ClienteId > 0 ? Model.ClienteId : null)">Proveedores</a></li>
+    <li>Nuevo proveedor</li>
+</ol>
 <h1>Nuevo proveedor</h1>
 
-<form asp-action="Create" method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="mb-3">
-        <label class="form-label">Cliente</label>
-        <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="form-select">
-            <option value="">-- Elegí un cliente --</option>
-        </select>
-        <span asp-validation-for="ClienteId" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Cuit" class="form-label"></label>
-        <input asp-for="Cuit" class="form-control" placeholder="20-12345678-6" />
-        <span asp-validation-for="Cuit" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="RazonSocial" class="form-label"></label>
-        <input asp-for="RazonSocial" class="form-control" />
-        <span asp-validation-for="RazonSocial" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Domicilio" class="form-label"></label>
-        <input asp-for="Domicilio" class="form-control" />
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Localidad" class="form-label"></label>
-        <input asp-for="Localidad" class="form-control" />
-    </div>
-
-    <div class="mb-3 form-check">
-        <input asp-for="InscriptoEnGanancias" class="form-check-input" />
-        <label asp-for="InscriptoEnGanancias" class="form-check-label"></label>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="TipoPersona" class="form-label"></label>
-        <select asp-for="TipoPersona" asp-items="Html.GetEnumSelectList<RetencionesRG830.Domain.Enums.TipoPersona>()" class="form-select"></select>
-        <div class="form-text">Sólo se usa para calcular la retención cuando el proveedor NO está inscripto en Ganancias.</div>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
-</form>
+<partial name="_FormularioProveedor" model="Model" />

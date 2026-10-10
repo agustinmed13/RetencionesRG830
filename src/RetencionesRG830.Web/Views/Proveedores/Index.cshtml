@@ -1,51 +1,128 @@
 @model IEnumerable<RetencionesRG830.Domain.Entidades.Proveedor>
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Listado de proveedores. No tiene pantalla propia en docs/prototipo-interfaz.html:
+    se compara contra el listado de operaciones, del que toma la cabecera, el
+    subtítulo con el agente de retención y la columna Cliente, que sólo aparece
+    cuando se ven los proveedores de todos los clientes.
 
+    Acciones de la fila como en Clientes: Editar navega; Dar de baja / Reactivar va
+    separada, en gris (enlace-modifica), y abre una confirmación con nombre y CUIT.
+*@
 @{
     ViewData["Title"] = "Proveedores";
-    var clienteNombre = ViewBag.ClienteNombre as string;
+
+    int? clienteId = ViewBag.ClienteId;
+    string? clienteNombre = ViewBag.ClienteNombre;
+    bool clienteActivo = ViewBag.ClienteActivo;
+    var todosLosClientes = clienteId is null;
+
+    var proveedores = Model.ToList();
+    var deBaja = proveedores.Count(p => !p.Activo);
+    var activos = proveedores.Count - deBaja;
 }
 
-<h1>Proveedores@(clienteNombre is null ? "" : $" de {clienteNombre}")</h1>
-
-<p>
-    <a asp-action="Create" asp-route-clienteId="@ViewBag.ClienteId" class="btn btn-primary">+ Nuevo proveedor</a>
-    @if (ViewBag.ClienteId is not null)
+<div class="cabecera-pagina">
+    <h1>Proveedores</h1>
+    @* A un cliente de baja no se le ofrece cargar proveedores, por el mismo motivo
+       que en Clientes no se le ofrece "Nueva operación": el alta sólo lista
+       clientes activos, así que el formulario no lo mostraría elegido. *@
+    @if (todosLosClientes || clienteActivo)
     {
-        <a asp-action="Index" class="btn btn-outline-secondary">Ver todos los proveedores</a>
+        <a class="boton boton-primario" asp-action="Create" asp-route-clienteId="@clienteId">
+            <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus" /></svg>Nuevo proveedor
+        </a>
     }
-</p>
+</div>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Cliente</th>
-            <th>CUIT</th>
-            <th>Razón social</th>
-            <th>Localidad</th>
-            <th>Inscripto en Ganancias</th>
-            <th>Activo</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var proveedor in Model)
-    {
-        <tr>
-            <td>@proveedor.Cliente?.RazonSocial</td>
-            <td>@proveedor.Cuit</td>
-            <td>@proveedor.RazonSocial</td>
-            <td>@proveedor.Localidad</td>
-            <td>@(proveedor.InscriptoEnGanancias ? "Sí" : "No")</td>
-            <td>@(proveedor.Activo ? "Sí" : "No")</td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@proveedor.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
-                <form asp-action="CambiarActivo" asp-route-id="@proveedor.Id" method="post" style="display:inline">
-                    <button type="submit" class="btn btn-sm btn-outline-warning">
-                        @(proveedor.Activo ? "Dar de baja" : "Reactivar")
-                    </button>
-                </form>
-            </td>
-        </tr>
-    }
-    </tbody>
-</table>
+@if (todosLosClientes)
+{
+    <p class="subtitulo-pagina">Todos los clientes.</p>
+}
+else
+{
+    <p class="subtitulo-pagina">
+        Agente de retención: <b>@(clienteNombre ?? "cliente inexistente")</b>
+        @if (clienteNombre is not null && !clienteActivo)
+        {
+            <span class="tag tag-inactivo">De baja</span>
+        }
+        · <a class="enlace" asp-action="Index">Ver todos los clientes</a>
+    </p>
+}
+
+<div class="tarjeta">
+    <div class="tabla-contenedor">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    @if (todosLosClientes)
+                    {
+                        <th>Cliente</th>
+                    }
+                    <th>CUIT</th>
+                    <th>Razón social</th>
+                    <th>Localidad</th>
+                    <th>Condición</th>
+                    <th>Estado</th>
+                    <th><span class="sr-only">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (proveedores.Count == 0)
+                {
+                    <tr>
+                        <td class="tabla-vacia" colspan="7">Todavía no hay proveedores cargados.</td>
+                    </tr>
+                }
+                @foreach (var proveedor in proveedores)
+                {
+                    <tr>
+                        @if (todosLosClientes)
+                        {
+                            <td><span class="recortado" title="@proveedor.Cliente?.RazonSocial">@proveedor.Cliente?.RazonSocial</span></td>
+                        }
+                        <td class="cuit">@proveedor.Cuit</td>
+                        <td>@proveedor.RazonSocial</td>
+                        <td>@proveedor.Localidad</td>
+                        <td>@FormatoProveedor.Condicion(proveedor)</td>
+                        <td>
+                            @if (proveedor.Activo)
+                            {
+                                <span class="tag tag-vigente">Activo</span>
+                            }
+                            else
+                            {
+                                <span class="tag tag-inactivo">De baja</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="acciones">
+                                <a class="enlace" asp-action="Edit" asp-route-id="@proveedor.Id">Editar</a>
+                                <a class="enlace enlace-modifica" asp-action="CambiarActivo" asp-route-id="@proveedor.Id">
+                                    @(proveedor.Activo ? "Dar de baja" : "Reactivar")
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="tarjeta-pie">
+        @* Mismo criterio que en Clientes: cada número dice de qué es. *@
+        <span>
+            @if (proveedores.Count == 0)
+            {
+                <text>0 proveedores</text>
+            }
+            else
+            {
+                var partes = new List<string>();
+                if (activos > 0) partes.Add($"{activos} {(activos == 1 ? "activo" : "activos")}");
+                if (deBaja > 0) partes.Add($"{deBaja} de baja");
+                @string.Join(" · ", partes)
+            }
+        </span>
+    </div>
+</div>
