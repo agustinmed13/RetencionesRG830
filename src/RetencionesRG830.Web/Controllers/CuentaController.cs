@@ -25,8 +25,22 @@ public class CuentaController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string email, string password, string? returnUrl)
+    public async Task<IActionResult> Login(string? email, string? password, string? returnUrl)
     {
+        // Los dos parámetros son string? porque eso es lo que llega de verdad: ASP.NET
+        // convierte un campo vacío en null. Antes eran string, y la contraseña vacía
+        // llegaba igual como null a PasswordHasher.Verificar, que la rechazaba con una
+        // excepción: error 500.
+        //
+        // Si falta alguno, se responde sin consultar la base. Así el mensaje no puede
+        // revelar si el correo existe: es el mismo exista o no, porque ni siquiera se
+        // busca. Por la misma razón no dice cuál de los dos falta.
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrEmpty(password))
+        {
+            ModelState.AddModelError(string.Empty, "Ingresá tu correo y tu contraseña.");
+            return View();
+        }
+
         var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == email);
 
         if (usuario == null || !PasswordHasher.Verificar(password, usuario.PasswordHash))
