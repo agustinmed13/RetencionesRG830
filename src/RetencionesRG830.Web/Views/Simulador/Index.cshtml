@@ -15,12 +15,21 @@
         <form asp-action="Index" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
+            @* Una opción por código. La versión la resuelve el servidor con la fecha
+               de retención (regla 9), igual que en Nueva operación. *@
             <div class="mb-3">
-                <label asp-for="RegimenId" class="form-label"></label>
-                <select asp-for="RegimenId" asp-items="ViewBag.Regimenes" class="form-select">
+                <label asp-for="CodigoRegimen" class="form-label"></label>
+                <select asp-for="CodigoRegimen" asp-items="ViewBag.Regimenes" class="form-select">
                     <option value="">-- Elegí un régimen --</option>
                 </select>
-                <span asp-validation-for="RegimenId" class="text-danger"></span>
+                <span asp-validation-for="CodigoRegimen" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="FechaRetencion" class="form-label"></label>
+                <input asp-for="FechaRetencion" type="date" class="form-control" />
+                <div class="form-text">Se calcula con los valores del régimen vigentes a esta fecha.</div>
+                <span asp-validation-for="FechaRetencion" class="text-danger"></span>
             </div>
 
             <div class="mb-3 form-check">
@@ -58,7 +67,11 @@
         @if (Model.Resultado is not null)
         {
             <div class="card">
-                <div class="card-header">Resultado del cálculo</div>
+                @* Con qué valores se calculó: la versión del régimen vigente a la fecha. *@
+                <div class="card-header">
+                    Resultado del cálculo<br />
+                    <small>Régimen @Model.CodigoRegimen · valores vigentes desde @Model.RegimenVigenciaDesde?.ToString("dd/MM/yyyy") · fecha de retención @Model.FechaRetencion.ToString("dd/MM/yyyy")</small>
+                </div>
                 <table class="table mb-0">
                     <tbody>
                         <tr>

@@ -43,7 +43,7 @@
             <div class="dato"><div class="etiqueta">CUIT del proveedor</div><div class="valor cuit">@Model.ProveedorCuit</div></div>
             <div class="dato"><div class="etiqueta">Condición</div><div class="valor">@Model.ProveedorCondicion</div></div>
             <div class="dato"><div class="etiqueta">Comprobante</div><div class="valor">@comprobante</div></div>
-            <div class="dato"><div class="etiqueta">Régimen</div><div class="valor"><span class="regimen">@Model.RegimenCodigo</span> @Model.RegimenNombre</div></div>
+            <div class="dato"><div class="etiqueta">Régimen</div><div class="valor"><span class="regimen">@Model.RegimenCodigo</span> @Model.RegimenNombre</div><div class="texto-atenuado">Valores vigentes desde <span class="fecha">@Model.RegimenVigenciaDesde.ToString("dd/MM/yyyy")</span></div></div>
             <div class="dato"><div class="etiqueta">Fecha del comprobante</div><div class="valor fecha">@Model.FechaComprobante.ToString("dd/MM/yyyy")</div></div>
             <div class="dato"><div class="etiqueta">Fecha de la retención</div><div class="valor fecha">@Model.FechaRetencion.ToString("dd/MM/yyyy")</div></div>
             <div class="dato"><div class="etiqueta">Importe total</div><div class="valor cifras">@Model.ImporteComprobante.ToString("C2")</div></div>
@@ -59,7 +59,7 @@
             <input type="hidden" asp-for="ClienteId" />
             <input type="hidden" asp-for="ClienteRazonSocial" />
             <input type="hidden" asp-for="ProveedorId" />
-            <input type="hidden" asp-for="RegimenId" />
+            <input type="hidden" asp-for="CodigoRegimen" />
             <input type="hidden" asp-for="TipoComprobante" />
             <input type="hidden" asp-for="PuntoVenta" />
             <input type="hidden" asp-for="NumeroComprobante" />

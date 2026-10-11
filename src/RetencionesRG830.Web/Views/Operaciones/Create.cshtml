@@ -59,18 +59,22 @@
                     <span asp-validation-for="ProveedorId" class="campo-error"></span>
                 </div>
                 <div class="campo">
-                    <label for="RegimenId">Régimen <span class="requerido">*</span></label>
-                    <select asp-for="RegimenId" class="campo-control">
+                    <label for="CodigoRegimen">Régimen <span class="requerido">*</span></label>
+                    @* Una opción por código: el valor es el código (78, 94...), no una
+                       versión. La versión la resuelve el servidor con la fecha de
+                       retención (regla 9). *@
+                    <select asp-for="CodigoRegimen" class="campo-control">
                         <option value="">Elegí un régimen</option>
                         @foreach (var r in regimenes)
                         {
                             <option value="@r.Id">@r.Texto</option>
                         }
                     </select>
-                    @* Qué alícuota corresponde al proveedor elegido y por qué. La arma el
-                       servidor y se actualiza junto con el panel de cálculo. *@
+                    @* Qué alícuota corresponde al proveedor elegido, por qué y desde
+                       cuándo rigen esos valores. La arma el servidor y se actualiza
+                       junto con el panel de cálculo, también al cambiar la fecha. *@
                     <div class="campo-ayuda" id="ayuda-regimen" aria-live="polite">@Model.AyudaRegimen</div>
-                    <span asp-validation-for="RegimenId" class="campo-error"></span>
+                    <span asp-validation-for="CodigoRegimen" class="campo-error"></span>
                 </div>
             </div>
         </section>

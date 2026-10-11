@@ -12,8 +12,13 @@ public class OperacionViewModel
     [Display(Name = "Proveedor")]
     public int ProveedorId { get; set; }
 
+    /// <summary>
+    /// El código de régimen elegido (78, 94, 116...), no una versión. Qué versión
+    /// corresponde la resuelve el servidor con la fecha de retención (regla 9): el
+    /// operador elige el régimen, la versión es una consecuencia de la fecha.
+    /// </summary>
     [Display(Name = "Régimen")]
-    public int RegimenId { get; set; }
+    public int CodigoRegimen { get; set; }
 
     [Display(Name = "Tipo de comprobante")]
     public int TipoComprobante { get; set; } = 1;
@@ -52,6 +57,12 @@ public class OperacionViewModel
 
     /// <summary>Código del régimen (78, 94, 116...), para la etiqueta de la revisión.</summary>
     public int RegimenCodigo { get; set; }
+
+    /// <summary>
+    /// Desde cuándo rigen los valores con que se calculó: dice qué versión del
+    /// régimen resolvió el servidor para la fecha de retención.
+    /// </summary>
+    public DateOnly RegimenVigenciaDesde { get; set; }
 
     /// <summary>CUIT del proveedor elegido.</summary>
     public string ProveedorCuit { get; set; } = string.Empty;

@@ -201,9 +201,15 @@ public static class DbInitializer
         }
 
         var estudio = context.Usuarios.FirstOrDefault(u => u.Rol == RolUsuario.Estudio);
-        var regimen78 = context.Regimenes.FirstOrDefault(r => r.Codigo == 78);
-        var regimen94 = context.Regimenes.FirstOrDefault(r => r.Codigo == 94);
-        if (estudio is null || regimen78 is null || regimen94 is null) return;
+        if (estudio is null || !context.Regimenes.Any(r => r.Codigo == 78) || !context.Regimenes.Any(r => r.Codigo == 94)) return;
+
+        // La versión de cada régimen se resuelve con la fecha de cada operación
+        // (regla 9), con la misma regla que el cálculo. Antes se tomaba
+        // FirstOrDefault(r => r.Codigo == 78): con dos versiones cargadas, la que la
+        // base devolviera primero, sin mirar la fecha.
+        Regimen Vigente(int codigo, DateOnly fecha) =>
+            VigenciaRegimen.VersionVigente(context.Regimenes.Where(r => r.Codigo == codigo).ToList(), fecha)
+            ?? throw new InvalidOperationException($"El régimen {codigo} no tiene valores vigentes al {fecha:dd/MM/yyyy}.");
 
         const string localidad = "San Salvador de Jujuy - JUJUY";
 
@@ -262,10 +268,10 @@ public static class DbInitializer
         var registro = new Servicios.ServicioRegistroOperaciones(context);
         var operaciones = new[]
         {
-            NuevaOperacion(agroinsumos, transportes, regimen94, 1, 4, 561, new DateOnly(2026, 9, 10), 726_000m, 600_000m, estudio),
-            NuevaOperacion(agroinsumos, ruiz, regimen78, 1, 2, 3310, new DateOnly(2026, 9, 15), 484_000m, 400_000m, estudio),
-            NuevaOperacion(agroinsumos, paz, regimen94, 4, 1, 45, new DateOnly(2026, 9, 18), 250_000m, 250_000m, estudio),
-            NuevaOperacion(agroinsumos, ruiz, regimen78, 1, 2, 3327, new DateOnly(2026, 9, 25), 363_000m, 300_000m, estudio),
+            NuevaOperacion(agroinsumos, transportes, Vigente(94, new DateOnly(2026, 9, 10)), 1, 4, 561, new DateOnly(2026, 9, 10), 726_000m, 600_000m, estudio),
+            NuevaOperacion(agroinsumos, ruiz, Vigente(78, new DateOnly(2026, 9, 15)), 1, 2, 3310, new DateOnly(2026, 9, 15), 484_000m, 400_000m, estudio),
+            NuevaOperacion(agroinsumos, paz, Vigente(94, new DateOnly(2026, 9, 18)), 4, 1, 45, new DateOnly(2026, 9, 18), 250_000m, 250_000m, estudio),
+            NuevaOperacion(agroinsumos, ruiz, Vigente(78, new DateOnly(2026, 9, 25)), 1, 2, 3327, new DateOnly(2026, 9, 25), 363_000m, 300_000m, estudio),
         };
         foreach (var operacion in operaciones)
         {

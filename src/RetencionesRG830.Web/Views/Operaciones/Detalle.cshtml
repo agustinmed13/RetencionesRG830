@@ -26,7 +26,9 @@
     <table class="table mb-0">
         <tbody>
             <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial (@Model.Proveedor?.Cuit)</td></tr>
-            <tr><td>Régimen</td><td>@Model.Regimen?.Codigo - @Model.Regimen?.Descripcion</td></tr>
+            @* Con qué versión del régimen se calculó (regla 9). La operación guarda el
+               RegimenId de la versión usada: cambiar de versión después no la altera. *@
+            <tr><td>Régimen</td><td>@Model.Regimen?.Codigo - @Model.Regimen?.Descripcion<br /><small>Régimen @Model.Regimen?.Codigo · valores vigentes desde @Model.Regimen?.VigenciaDesde.ToString("dd/MM/yyyy")</small></td></tr>
             <tr><td>Comprobante</td><td>@Model.TipoComprobante - @Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td></tr>
             <tr><td>Fecha del comprobante</td><td>@Model.FechaComprobante.ToString("dd/MM/yyyy")</td></tr>
             <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>

@@ -24,12 +24,33 @@ public class ServicioRegistroOperaciones
     }
 
     /// <summary>
-    /// Completa la operación con la retención y el número de certificado,
-    /// la guarda, y la devuelve ya registrada.
+    /// La versión del régimen que rige en la fecha (regla 9), con sus tramos de
+    /// escala, o null si ninguna rige. La usan el formulario, para resolver el
+    /// código elegido, y el seed. Cuál rige lo decide VigenciaRegimen, la misma
+    /// regla que usa la pantalla de Regímenes.
     /// </summary>
-      /// <summary>
+    public async Task<Regimen?> VersionVigenteAsync(int codigoRegimen, DateOnly fecha)
+    {
+        var versiones = await _db.Regimenes
+            .Include(r => r.Tramos)
+            .Where(r => r.Codigo == codigoRegimen)
+            .ToListAsync();
+
+        return VigenciaRegimen.VersionVigente(versiones, fecha);
+    }
+
+    /// <summary>
     /// Calcula la retención SIN guardar nada, para poder mostrarla antes de
-    /// confirmar. Deja cargada la base acumulada en la operación recibida.
+    /// confirmar. Deja cargadas en la operación recibida la base acumulada y la
+    /// versión del régimen que se usó.
+    ///
+    /// El régimen es el CÓDIGO; la versión es una consecuencia de la fecha, no una
+    /// decisión de quien llama (regla 9). Por eso el RegimenId recibido sólo se usa
+    /// para saber de qué código se trata: la versión se resuelve acá con la fecha
+    /// de retención, y la operación queda con el RegimenId de esa versión, que es
+    /// lo que permite auditar después con qué valores se calculó. Así ni el seed,
+    /// ni un formulario alterado, ni ningún otro código pueden calcular con una
+    /// versión que no rige en esa fecha.
     /// </summary>
     public async Task<ResultadoCalculoRetencion> SimularAsync(Operacion operacion)
     {
@@ -44,10 +65,16 @@ public class ServicioRegistroOperaciones
         if (proveedor.ClienteId != operacion.ClienteId)
             throw new InvalidOperationException("El proveedor indicado no pertenece a este cliente.");
 
-        var regimen = await _db.Regimenes
-            .Include(r => r.Tramos)
-            .FirstOrDefaultAsync(r => r.Id == operacion.RegimenId)
+        var codigo = await _db.Regimenes
+            .Where(r => r.Id == operacion.RegimenId)
+            .Select(r => (int?)r.Codigo)
+            .FirstOrDefaultAsync()
             ?? throw new InvalidOperationException("El régimen indicado no existe.");
+
+        var regimen = await VersionVigenteAsync(codigo, operacion.FechaRetencion)
+            ?? throw new InvalidOperationException(
+                $"El régimen {codigo} no tiene valores vigentes al {operacion.FechaRetencion:dd/MM/yyyy}.");
+        operacion.RegimenId = regimen.Id;
 
         var acumulado = await CalcularAcumuladoDelMesAsync(operacion);
 
@@ -84,16 +111,27 @@ public class ServicioRegistroOperaciones
     /// Suma lo gravado y lo ya retenido a ese proveedor, en ese régimen,
     /// dentro del mes de la fecha de retención. NO incluye la operación
     /// que se está por registrar.
+    ///
+    /// "Ese régimen" es el CÓDIGO, no la versión: se agrupa por Regimen.Codigo y
+    /// no por RegimenId. Si una versión nueva empieza a mitad de mes, las
+    /// operaciones calculadas con la vieja y con la nueva son del mismo régimen y
+    /// tienen que acumularse (reglas 1, 2 y 3). Agrupando por RegimenId quedaban
+    /// separadas: el piso se aplicaba dos veces y no se descontaba lo ya retenido.
     /// </summary>
     public async Task<(decimal Gravado, decimal Retenido)> CalcularAcumuladoDelMesAsync(Operacion operacion)
     {
         var primerDia = new DateOnly(operacion.FechaRetencion.Year, operacion.FechaRetencion.Month, 1);
         var ultimoDia = primerDia.AddMonths(1).AddDays(-1);
 
+        var codigo = await _db.Regimenes
+            .Where(r => r.Id == operacion.RegimenId)
+            .Select(r => r.Codigo)
+            .SingleAsync();
+
         var anteriores = await _db.Operaciones
             .Where(o => o.ClienteId == operacion.ClienteId
                      && o.ProveedorId == operacion.ProveedorId
-                     && o.RegimenId == operacion.RegimenId
+                     && o.Regimen!.Codigo == codigo
                      && o.Id != operacion.Id
                      && !o.Anulada
                      && o.FechaRetencion >= primerDia

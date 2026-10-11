@@ -11,8 +11,22 @@ namespace RetencionesRG830.Web.Models;
 /// </summary>
 public class SimuladorViewModel
 {
+    /// <summary>
+    /// El código de régimen (78, 94, 116...), no una versión: la versión la resuelve
+    /// el servidor con FechaRetencion, igual que en Nueva operación (regla 9).
+    /// </summary>
     [Display(Name = "Régimen")]
-    public int RegimenId { get; set; }
+    public int CodigoRegimen { get; set; }
+
+    /// <summary>
+    /// Define con qué valores se calcula: los vigentes a esta fecha. La pantalla la
+    /// propone con la fecha de hoy, y se puede cambiar para simular una operación
+    /// atrasada. Sin valor inicial acá a propósito: si un envío llega sin fecha, es
+    /// un error de validación, no "hoy" en silencio.
+    /// </summary>
+    [Display(Name = "Fecha de retención")]
+    [DataType(DataType.Date)]
+    public DateOnly FechaRetencion { get; set; }
 
     [Display(Name = "Proveedor inscripto en Ganancias")]
     public bool InscriptoEnGanancias { get; set; } = true;
@@ -30,4 +44,7 @@ public class SimuladorViewModel
 
     /// <summary>Queda en null hasta que se aprieta "Calcular".</summary>
     public ResultadoCalculoRetencion? Resultado { get; set; }
+
+    /// <summary>Desde cuándo rigen los valores con que se calculó el resultado.</summary>
+    public DateOnly? RegimenVigenciaDesde { get; set; }
 }

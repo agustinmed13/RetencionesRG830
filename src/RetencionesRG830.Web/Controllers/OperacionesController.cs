@@ -95,22 +95,25 @@ public class OperacionesController : Controller
         // completen. Los errores de formato de otros campos (un número de
         // comprobante a medio escribir) no importan acá: los valida Revisar.
         var faltanDatos = modelo.ProveedorId <= 0
-            || modelo.RegimenId <= 0
+            || modelo.CodigoRegimen <= 0
             || modelo.ImporteGravado <= 0
             || modelo.FechaRetencion == default;
 
         // El proveedor tiene que ser de este cliente: si no, el acumulado del mes
-        // se buscaría sobre operaciones de otro agente de retención.
+        // se buscaría sobre operaciones de otro agente de retención. Y el régimen
+        // tiene que tener una versión vigente a la fecha de retención: si no, la
+        // ayuda debajo del régimen lo explica (CompletarAvisosAsync).
+        Regimen? version = null;
         if (!faltanDatos)
         {
             var proveedorDelCliente = await _registro.ProveedorPerteneceAlClienteAsync(modelo.ProveedorId, modelo.ClienteId);
-            var regimenExiste = await _db.Regimenes.AnyAsync(r => r.Id == modelo.RegimenId);
-            faltanDatos = !proveedorDelCliente || !regimenExiste;
+            version = await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion);
+            faltanDatos = !proveedorDelCliente || version is null;
         }
 
         if (!faltanDatos)
         {
-            modelo.Resultado = await _registro.SimularAsync(ArmarOperacion(modelo));
+            modelo.Resultado = await _registro.SimularAsync(ArmarOperacion(modelo, version!.Id));
         }
 
         return PartialView("_PanelCalculo", modelo);
@@ -129,17 +132,19 @@ public class OperacionesController : Controller
             return View("Create", modelo);
         }
 
-        var operacion = ArmarOperacion(modelo);
+        // ValidarAsync ya comprobó que hay una versión vigente a la fecha de retención.
+        var regimen = (await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion))!;
+        var operacion = ArmarOperacion(modelo, regimen.Id);
 
         modelo.Resultado = await _registro.SimularAsync(operacion);
 
         var proveedor = (await _db.Proveedores.FindAsync(modelo.ProveedorId))!;
-        var regimen = (await _db.Regimenes.FindAsync(modelo.RegimenId))!;
         modelo.ProveedorNombre = proveedor.RazonSocial;
         modelo.ProveedorCuit = proveedor.Cuit;
         modelo.ProveedorCondicion = FormatoProveedor.Condicion(proveedor);
         modelo.RegimenNombre = regimen.Descripcion;
         modelo.RegimenCodigo = regimen.Codigo;
+        modelo.RegimenVigenciaDesde = regimen.VigenciaDesde;
         modelo.ProximoNumeroCertificado = await _registro.SiguienteNumeroCertificadoAsync(modelo.ClienteId);
         await CompletarAvisosAsync(modelo);
 
@@ -170,7 +175,10 @@ public class OperacionesController : Controller
             return View("Create", modelo);
         }
 
-        var operacion = ArmarOperacion(modelo);
+        // Se vuelve a resolver acá, con los datos que llegan al confirmar: no se
+        // confía en una versión que haya viajado desde la pantalla de revisión.
+        var regimen = (await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion))!;
+        var operacion = ArmarOperacion(modelo, regimen.Id);
         await _registro.RegistrarAsync(operacion);
 
         return RedirectToAction(nameof(Detalle), new { id = operacion.Id });
@@ -219,6 +227,15 @@ public class OperacionesController : Controller
     /// <summary>Validaciones propias, además de las del formulario.</summary>
     private async Task<bool> ValidarAsync(OperacionViewModel modelo)
     {
+        // Con una fecha vacía, ASP.NET ya dejó su propio error en inglés ("The value
+        // '' is invalid."), que se mostraría primero: se reemplaza por uno en español.
+        // Mismo arreglo que en el Simulador.
+        if (modelo.FechaComprobante == default)
+            ReemplazarError(nameof(modelo.FechaComprobante), "Indicá la fecha del comprobante.");
+        if (modelo.FechaRetencion == default)
+            ReemplazarError(nameof(modelo.FechaRetencion),
+                "Indicá la fecha de la retención: define el mes del acumulado y con qué valores se calcula.");
+
         if (modelo.ProveedorId <= 0)
             ModelState.AddModelError(nameof(modelo.ProveedorId), "Tenés que elegir un proveedor.");
         // Mismo control que el cálculo en vivo. El formulario sólo ofrece proveedores
@@ -228,8 +245,13 @@ public class OperacionesController : Controller
         else if (!await _registro.ProveedorPerteneceAlClienteAsync(modelo.ProveedorId, modelo.ClienteId))
             ModelState.AddModelError(nameof(modelo.ProveedorId), "El proveedor elegido no pertenece a este cliente.");
 
-        if (modelo.RegimenId <= 0)
-            ModelState.AddModelError(nameof(modelo.RegimenId), "Tenés que elegir un régimen.");
+        if (modelo.CodigoRegimen <= 0)
+            ModelState.AddModelError(nameof(modelo.CodigoRegimen), "Tenés que elegir un régimen.");
+        // Sin una versión vigente a la fecha de retención no hay valores con qué
+        // calcular (regla 9). Con la fecha vacía el error ya lo da ese campo.
+        else if (modelo.FechaRetencion != default
+                 && await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion) is null)
+            ModelState.AddModelError(nameof(modelo.CodigoRegimen), SinVersionVigente(modelo));
 
         if (modelo.ImporteGravado > modelo.ImporteComprobante)
             ModelState.AddModelError(nameof(modelo.ImporteGravado),
@@ -238,12 +260,26 @@ public class OperacionesController : Controller
         return ModelState.IsValid;
     }
 
-    /// <summary>Arma la operación a partir del formulario, sin guardarla.</summary>
-    private Operacion ArmarOperacion(OperacionViewModel modelo) => new Operacion
+    /// <summary>Saca los errores que ya tenga un campo y deja sólo el mensaje dado.</summary>
+    private void ReemplazarError(string campo, string mensaje)
+    {
+        ModelState.Remove(campo);
+        ModelState.AddModelError(campo, mensaje);
+    }
+
+    private static string SinVersionVigente(OperacionViewModel modelo) =>
+        $"El régimen {modelo.CodigoRegimen} no tiene valores vigentes al {modelo.FechaRetencion:dd/MM/yyyy}.";
+
+    /// <summary>
+    /// Arma la operación a partir del formulario, sin guardarla. El regimenId es el
+    /// de la versión ya resuelta para la fecha de retención: el formulario sólo trae
+    /// el código. Igual SimularAsync la vuelve a resolver por su cuenta.
+    /// </summary>
+    private Operacion ArmarOperacion(OperacionViewModel modelo, int regimenId) => new Operacion
     {
         ClienteId = modelo.ClienteId,
         ProveedorId = modelo.ProveedorId,
-        RegimenId = modelo.RegimenId,
+        RegimenId = regimenId,
         TipoComprobante = modelo.TipoComprobante,
         PuntoVenta = modelo.PuntoVenta,
         NumeroComprobante = modelo.NumeroComprobante,
@@ -319,12 +355,22 @@ public class OperacionesController : Controller
         var proveedor = modelo.ProveedorId > 0
             ? await _db.Proveedores.FirstOrDefaultAsync(p => p.Id == modelo.ProveedorId && p.ClienteId == modelo.ClienteId)
             : null;
-        var regimen = modelo.RegimenId > 0 ? await _db.Regimenes.FindAsync(modelo.RegimenId) : null;
+        // La versión que rige a la fecha de retención (regla 9). La ayuda dice desde
+        // cuándo rigen esos valores, para que se vea con cuáles se va a calcular; y
+        // si no rige ninguna, lo dice en lugar de mostrar una alícuota.
+        var regimen = modelo.CodigoRegimen > 0 && modelo.FechaRetencion != default
+            ? await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion)
+            : null;
 
-        modelo.AyudaRegimen = regimen is null ? string.Empty : FormatoRegimen.Ayuda(regimen, proveedor);
+        modelo.AyudaRegimen = regimen is not null
+            ? $"{FormatoRegimen.Ayuda(regimen, proveedor)} · valores vigentes desde {regimen.VigenciaDesde:dd/MM/yyyy}"
+            : modelo.CodigoRegimen > 0 && modelo.FechaRetencion != default
+                ? SinVersionVigente(modelo)
+                : string.Empty;
 
+        // El comprobante repetido no depende del régimen.
         modelo.ComprobantesRepetidos = proveedor is not null && modelo.PuntoVenta > 0 && modelo.NumeroComprobante > 0
-            ? await _registro.OperacionesConMismoComprobanteAsync(ArmarOperacion(modelo))
+            ? await _registro.OperacionesConMismoComprobanteAsync(ArmarOperacion(modelo, 0))
             : new List<Operacion>();
     }
 
@@ -344,10 +390,21 @@ public class OperacionesController : Controller
                 $"{p.Cuit} · {FormatoProveedor.Condicion(p)}"))
             .ToList();
 
-        var regimenes = await _db.Regimenes.OrderBy(r => r.Codigo).ToListAsync();
+        // Una opción por CÓDIGO, no por versión (regla 9): el valor de cada opción es
+        // el código. Qué versión se usa lo decide la fecha de retención, no el
+        // operador. La descripción es la de la versión vigente hoy o, si no rige
+        // ninguna, la de la más reciente.
+        var regimenes = await _db.Regimenes.ToListAsync();
+        var hoy = DateOnly.FromDateTime(DateTime.Today);
 
         ViewBag.Regimenes = regimenes
-            .Select(r => new OpcionConAyuda(r.Id, $"{r.Codigo} — {r.Descripcion}", string.Empty))
+            .GroupBy(r => r.Codigo)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var paraMostrar = VigenciaRegimen.VersionVigente(g, hoy) ?? g.MaxBy(r => r.VigenciaDesde)!;
+                return new OpcionConAyuda(g.Key, $"{g.Key} — {paraMostrar.Descripcion}", string.Empty);
+            })
             .ToList();
 
         var cliente = await _db.Clientes.FindAsync(clienteId);

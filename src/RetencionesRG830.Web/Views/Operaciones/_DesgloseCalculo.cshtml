@@ -20,6 +20,11 @@
     // Los renglones que restan llevan el signo menos tipográfico (−), como en el prototipo.
     string Resta(decimal valor) => valor > 0 ? "−" + valor.ToString("C2") : valor.ToString("C2");
 
+    // En el panel, el rojo marca una resta. Un cero no resta nada: va sin rojo, igual
+    // que va sin signo menos. Si no, "Retenciones anteriores del mes: $ 0,00" en rojo
+    // sugiere que se descontó algo en la primera operación del mes.
+    string ClaseResta(decimal valor) => esPanel && valor != 0 ? "renglon-resta" : "";
+
     var alicuota = Model.SeAplicoEscala ? "Según escala" : (Model.TasaAplicada * 100).ToString("N2") + " %";
 }
 
@@ -28,7 +33,7 @@
         <span class="etiqueta">Base acumulada del mes</span>
         <span class="valor">@Model.BaseAcumuladaDelMes.ToString("C2")</span>
     </div>
-    <div class="renglon @(esPanel ? "renglon-resta" : "")">
+    <div class="renglon @ClaseResta(Model.MinimoNoSujetoARetencion)">
         <span class="etiqueta">Monto no sujeto a retención</span>
         <span class="valor">@Resta(Model.MinimoNoSujetoARetencion)</span>
     </div>
@@ -44,7 +49,7 @@
         <span class="etiqueta">Retención determinada</span>
         <span class="valor">@Model.RetencionAcumuladaDeterminada.ToString("C2")</span>
     </div>
-    <div class="renglon @(esPanel ? "renglon-resta" : "")">
+    <div class="renglon @ClaseResta(Model.RetencionesAnterioresDelMes)">
         <span class="etiqueta">Retenciones anteriores del mes</span>
         <span class="valor">@Resta(Model.RetencionesAnterioresDelMes)</span>
     </div>

@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 62 tests, deben dar todos verde
+dotnet test                                      # 68 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -99,7 +99,7 @@ línea bajo dos configuraciones regionales distintas y verifica que el resultado
 
 ## Tests
 
-62 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+68 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 
@@ -232,36 +232,47 @@ sin reactivarlo) o si se bloquea. Si se bloquea, la validación va en el servido
 registro de la operación, no sólo en la vista: mismo criterio que el filtro por `ClienteId`
 del rol Cliente.
 
-### Pendiente: la regla 9 (vigencia de los regímenes) no está implementada en el cálculo
+### Resuelto: la regla 9 (vigencia de los regímenes) en el cálculo
 
-La regla 9 dice que una operación se calcula con los valores vigentes a su fecha de
-retención. Hoy ningún código del cálculo mira `VigenciaDesde` ni `VigenciaHasta`:
+Hasta octubre de 2026 el cálculo no miraba la vigencia: los desplegables listaban todas las
+versiones de cada régimen con el mismo texto, y el acumulado agrupaba por versión
+(`RegimenId`). Con una segunda versión del 78 cargada, se reprodujo que un mes de dos
+operaciones retenía $ 3.520 en lugar de $ 12.000. Criterio adoptado: **el régimen es el
+código; la versión es una consecuencia de la fecha, no una decisión del operador.**
 
-- **El desplegable de régimen no filtra por vigencia.** Nueva operación
-  (`OperacionesController.CargarListas`) y el Simulador listan todas las filas de `Regimen`.
-  Con dos versiones del 78 aparecerían dos opciones con el mismo texto, y se calcularía con
-  la que el operador elija, aunque sea la vieja.
-- **El acumulado agrupa por `RegimenId`, no por código**
-  (`ServicioRegistroOperaciones`, la consulta del acumulado del mes). Si una tasa cambia a
-  mitad de mes, las operaciones del 78 viejo y del 78 nuevo no se acumulan entre sí: el
-  piso se aplicaría dos veces y no se descontaría lo ya retenido.
+Cómo quedó:
 
-Eso rompe las reglas 1, 2 y 3 en cuanto exista una segunda versión de un régimen. No se
-nota porque el seed tiene una sola versión por régimen.
+- **El desplegable ofrece el código**, una opción por régimen, en Nueva operación y en el
+  Simulador. El formulario manda `CodigoRegimen`, no una versión. El Simulador tiene su propio
+  campo "Fecha de retención" (hoy como valor inicial).
+- **La versión se resuelve con la fecha de retención** de la operación, no con la de hoy:
+  `ServicioRegistroOperaciones.VersionVigenteAsync(codigo, fecha)`, que usa
+  `VigenciaRegimen.VersionVigente`, la misma regla que la pantalla de Regímenes.
+  `SimularAsync` vuelve a resolverla por su cuenta: el `RegimenId` que recibe sólo le dice el
+  código. Así ni el seed, ni un formulario alterado, ni ningún otro código pueden calcular con
+  una versión que no rige en esa fecha. Si no rige ninguna, es un error que nombra el código
+  y la fecha.
+- **El acumulado agrupa por código** (`Regimen.Codigo`), no por `RegimenId`.
+- **La operación guarda la versión usada** (`RegimenId`), para auditar con qué valores se
+  calculó. El modelo de datos no cambió. La confirmación, el Detalle y el resultado del
+  Simulador dicen "valores vigentes desde …".
+- Con una sola versión por régimen el resultado es idéntico al de antes: los golden tests no
+  se tocaron y siguen en verde. El escenario de dos versiones está cubierto en
+  `ReglaVigenciaRegistroTests`, no en el seed: el seed no lleva valores que AFIP no dictó.
 
-Ya existe la pieza que decide cuál rige: `VigenciaRegimen.VersionVigente(versiones, fecha)`
-en Application, con tests. La usa la pantalla de Regímenes y la tiene que usar el arreglo,
-para que pantalla y cálculo no puedan discrepar.
+### Pendiente de confirmar con el contador: cambio de valores a mitad de mes
 
-**Lectura del autor, para discutir cuando se encare** (no es una decisión tomada):
+Si AFIP cambia los valores de un régimen a mitad de mes, hoy cada operación usa la versión
+vigente a su fecha, y el acumulado del mes junta las dos versiones. La operación posterior al
+cambio aplica los valores **nuevos a todo el acumulado del mes** y descuenta lo retenido con
+los viejos. Ejemplo (valores inventados): $ 400.000 el 10/09 con la versión vieja (2 %,
+$ 224.000 no sujeto) retiene $ 3.520; $ 300.000 el 20/09 con la nueva (3 %, $ 300.000 no
+sujeto) retiene $ 8.480.
 
-- No haría falta cambiar el modelo de datos. La operación debe seguir guardando la versión
-  concreta que se usó (`RegimenId`): es lo que permite auditar con qué valores se calculó.
-- Lo que cambia es que el acumulado agrupe por **código** de régimen y que el desplegable
-  muestre un régimen por código y **resuelva la versión vigente a la fecha de retención**.
-- Como hoy hay una sola versión por régimen, el arreglo tiene que dar exactamente el mismo
-  resultado que ahora: **los golden tests no se tienen que romper. Si se rompen, está mal el
-  arreglo.**
+Es coherente con cómo trabaja el motor, pero el criterio correcto es una decisión del negocio
+y **no está confirmado**. Lo fija el test
+`ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes_el_acumulado_junta_las_dos`:
+si el contador indica otro criterio, ese test es el que hay que cambiar primero.
 
 ---
 
