@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 68 tests, deben dar todos verde
+dotnet test                                      # 109 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -37,7 +37,7 @@ Usuarios de prueba:
 ```
 src/
   RetencionesRG830.Domain          Entidades del negocio. NO depende de nada.
-  RetencionesRG830.Application     Motor de cálculo, ValidadorCuit, hashing.
+  RetencionesRG830.Application     Motor de cálculo, ValidadorCuit, LectorImporte, vigencia de regímenes, hashing.
   RetencionesRG830.Infrastructure  EF Core 8 + SQLite, generador de PDF y de SICORE.
   RetencionesRG830.Web             ASP.NET Core MVC: controladores y vistas Razor.
 tests/
@@ -85,21 +85,40 @@ Salen de la norma y de la operatoria real del estudio. Cada una está cubierta p
 Es el defecto que el sistema vino a resolver y aparece en dos lugares. Bajo la cultura
 es-AR, `87190.09` se interpreta como `8719009`: el punto se lee como separador de miles.
 
-- **En los formularios** lo resuelve `src/RetencionesRG830.Web/Infraestructura/DecimalModelBinder.cs`,
-  registrado al principio de la cadena de model binders. Acepta punto o coma sin confundir
-  el punto con separador de miles.
+- **En los formularios** la regla está en `LectorImporte.Interpretar` (Application): acepta
+  punto o coma decimal sin confundir el punto con separador de miles, y distingue tres
+  casos: vacío, un número o inválido. `src/RetencionesRG830.Web/Infraestructura/DecimalModelBinder.cs`,
+  registrado al principio de la cadena de model binders, sólo la conecta con ASP.NET. Un
+  campo vacío **no es cero**: en un `decimal?` llega como `null` (y la obligatoriedad la
+  decide su `[Required]`); en un `decimal` es el error "Ingresá un importe.".
 - **En el archivo de SICORE**, `GeneradorArchivoSicore` formatea siempre con
   `CultureInfo.InvariantCulture` y después reemplaza el punto por coma. Es la causa de los
   rechazos de AFIP que hoy sufre el estudio.
 
-No tocar ninguna de las dos piezas sin correr los tests. Hay un test que genera la misma
-línea bajo dos configuraciones regionales distintas y verifica que el resultado sea idéntico.
+Qué cubre cada test, de verdad:
+
+- **`GeneradorArchivoSicoreTests`**: el archivo de SICORE. Las cinco líneas reales
+  presentadas por el estudio, carácter por carácter, y la misma línea generada bajo en-US y
+  es-AR, que tiene que dar idéntica.
+- **`LectorImporteTests`**: cómo se lee un importe escrito en un formulario. Fija el
+  comportamiento medido en vivo antes de sacar la regla del binder (octubre de 2026): punto
+  y coma decimal, "1.234" es 1,234 y nunca 1234, qué textos son inválidos, y que vacío no es
+  cero. Cada caso corre bajo es-AR y bajo en-US.
+- **Lo que no tiene test automático:** el `DecimalModelBinder` en sí, es decir, cómo traduce
+  el resultado de `LectorImporte` para ASP.NET (sobre todo, qué hace con un vacío según el
+  campo sea `decimal` o `decimal?`). El proyecto de tests no referencia la Web. Se verificó
+  en vivo; si se lo toca, hay que volver a probarlo a mano en un formulario.
+
+Hasta octubre de 2026 este documento decía que las dos piezas estaban cubiertas por tests.
+No era cierto: el binder no tenía ninguno.
+
+No tocar ninguna de las dos piezas sin correr los tests.
 
 ---
 
 ## Tests
 
-68 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+109 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 

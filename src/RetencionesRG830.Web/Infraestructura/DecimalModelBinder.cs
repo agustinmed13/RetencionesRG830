@@ -1,17 +1,12 @@
-using System.Globalization;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using RetencionesRG830.Application.Servicios;
 
 namespace RetencionesRG830.Web.Infraestructura;
 
 /// <summary>
 /// Interpreta los importes que llegan de los formularios aceptando tanto
-/// punto como coma decimal.
-///
-/// Hace falta porque los campos &lt;input type="number"&gt; del navegador
-/// SIEMPRE envían el número con punto ("87190.09"), sin importar el idioma
-/// de la computadora, mientras que la aplicación está configurada en es-AR,
-/// donde el punto significa separador de miles. Sin esto, "87190.09" se
-/// interpretaba como 8.719.009: cien veces más grande, y sin ningún aviso.
+/// punto como coma decimal. La regla está en LectorImporte (Application), con
+/// tests bajo es-AR y en-US; este binder sólo la conecta con ASP.NET.
 ///
 /// Es el mismo problema de fondo que hace que a veces AFIP le rechace al
 /// estudio el archivo de SICORE: un número que cambia de significado según
@@ -30,26 +25,33 @@ public class DecimalModelBinder : IModelBinder
 
         bindingContext.ModelState.SetModelValue(bindingContext.ModelName, valor);
 
-        var texto = valor.FirstValue;
+        // Cómo se lee el texto lo decide LectorImporte (Application), que tiene tests.
+        // Acá sólo se traduce el resultado a lo que espera ASP.NET.
+        var lectura = LectorImporte.Interpretar(valor.FirstValue);
 
-        if (string.IsNullOrWhiteSpace(texto))
+        switch (lectura.Resultado)
         {
-            return Task.CompletedTask;
-        }
+            // Vacío no es cero. Antes este caso salía sin informar nada, y la propiedad
+            // se quedaba en 0: así se podía registrar una operación de $ 0.
+            // - En un decimal? el vacío se representa como null, y si el campo es
+            //   obligatorio lo dice su [Required], con su propio mensaje.
+            // - En un decimal común no hay cómo representar "vacío": es un error.
+            case ResultadoLectura.Vacio:
+                if (Nullable.GetUnderlyingType(bindingContext.ModelType) is not null)
+                    bindingContext.Result = ModelBindingResult.Success(null);
+                else
+                    bindingContext.ModelState.TryAddModelError(
+                        bindingContext.ModelName, "Ingresá un importe.");
+                break;
 
-        // Sin AllowThousands a propósito: así el punto nunca se puede
-        // confundir con un separador de miles.
-        const NumberStyles estilos = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign;
+            case ResultadoLectura.Numero:
+                bindingContext.Result = ModelBindingResult.Success(lectura.Valor);
+                break;
 
-        if (decimal.TryParse(texto, estilos, CultureInfo.InvariantCulture, out var numero)
-            || decimal.TryParse(texto, estilos, new CultureInfo("es-AR"), out numero))
-        {
-            bindingContext.Result = ModelBindingResult.Success(numero);
-        }
-        else
-        {
-            bindingContext.ModelState.TryAddModelError(
-                bindingContext.ModelName, "Ingresá un importe válido.");
+            default:
+                bindingContext.ModelState.TryAddModelError(
+                    bindingContext.ModelName, "Ingresá un importe válido.");
+                break;
         }
 
         return Task.CompletedTask;
