@@ -78,6 +78,76 @@ Salen de la norma y de la operatoria real del estudio. Cada una está cubierta p
    fecha de vigencia. Una operación se calcula con los valores vigentes a su fecha de
    retención. Nunca escribir una tasa o un piso dentro del código.
 
+### Reglas confirmadas por el contador
+
+Fuente: **consulta al contador del estudio, octubre de 2026.** Son tan firmes como las
+anteriores, pero **no todas están implementadas todavía**: cada una dice cómo está hoy el
+código. Mientras una figure como "no implementada", el sistema la viola.
+
+10. **Una operación que no alcanza el mínimo de retención no emite certificado, pero se
+    registra.** Tiene que sumar al acumulado del mes: si no se guardara, el pago siguiente
+    al mismo proveedor calcularía sobre una base incompleta. Queda registrada, **sin número
+    de certificado, y no se informa en SICORE.**
+    *Hoy:* no implementada. El motor ya da retención 0 con la observación "Retención mínima",
+    pero `ServicioRegistroOperaciones.RegistrarAsync` le asigna número de certificado a toda
+    operación, `Operacion.NumeroCertificado` es `int` (no admite "sin número") y
+    `SicoreController` informa todas las no anuladas, también las de retención cero.
+    Implementarla toca el modelo de datos (migración), la numeración, el PDF y SICORE.
+
+11. **No se registran operaciones de un cliente dado de baja.** No existen operaciones
+    atrasadas: el estudio da de baja a un cliente el día 1 de un mes, después de cerrar el
+    mes anterior. **La validación va en el servidor**, en el registro de la operación, no
+    sólo en la vista: mismo criterio que el filtro por `ClienteId` del rol Cliente.
+    *Hoy:* no implementada. La baja saca al cliente del selector de SICORE y el listado de
+    Clientes no ofrece "Nueva operación" en su fila, pero `OperacionesController` acepta
+    registrar una operación para un cliente de baja si se llega por la URL.
+
+12. **Una factura pagada en cuotas genera varios certificados, y en ese caso se informa la
+    orden de pago, no la factura.** La retención se practica al pagar, no al facturar. **No
+    hay que impedir que se repita un número de comprobante.**
+    *Hoy:* implementada en parte. Un comprobante repetido del mismo proveedor (tipo, punto de
+    venta y número, contra operaciones vigentes) **avisa pero no bloquea**: el aviso sale en
+    el panel de cálculo y en la confirmación con el certificado y la fecha de la operación
+    existente (`ServicioRegistroOperaciones.OperacionesConMismoComprobanteAsync`). Queda así,
+    confirmado. Las anuladas no cuentan como repetidas, porque recargar un comprobante después
+    de anular su operación es la forma normal de corregir un error. **Falta la orden de pago
+    como tipo de comprobante:** hoy sólo existen Factura, Nota de débito, Nota de crédito y
+    Recibo (ver pendientes).
+
+13. **El domicilio del proveedor es obligatorio.** Siempre está, porque figura en la factura.
+    *Hoy:* no implementada. `Proveedor.Domicilio` no tiene `[Required]`.
+
+14. **Los certificados no se reimprimen: se guarda el PDF emitido.** Si hay que corregir un
+    CUIT o una razón social, se anula el certificado y se emite uno nuevo.
+    *Hoy:* no implementada, y es la de más consecuencias. `OperacionesController.Certificado`
+    arma el PDF de nuevo cada vez, con los datos **actuales** del proveedor. Como
+    `ServicioProveedores` permite editar CUIT, razón social y domicilio, volver a descargar
+    un certificado viejo después de una edición produce un documento fiscal distinto del que
+    se entregó.
+
+15. **Los valores de la RG 830 rigen siempre desde el día 1 de un mes.** Nunca cambiaron a
+    mitad de mes. Confirma el criterio de la regla 9: cada operación usa la versión vigente a
+    su fecha de retención, y dentro de un mes rige una sola versión.
+    *Hoy:* implementada (ver "Resuelto: la regla 9"). El caso de dos versiones en un mismo mes
+    no se da en la práctica. El test
+    `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes_el_acumulado_junta_las_dos`
+    se conserva porque documenta qué hace el motor si alguna vez pasara.
+
+---
+
+## Volumen esperado
+
+Fuente: el autor, octubre de 2026. Sirve para dimensionar.
+
+| | Empresas | Proveedores por empresa | Pagos por proveedor y mes | Retenciones por mes | Por año |
+|---|---|---|---|---|---|
+| Hoy | 2 | ~10 | 2 o 3 | 40 a 60 | 480 a 720 |
+| Si lo adoptan todas | 20 | ~10 | 2 o 3 | 400 a 600 | 4.800 a 7.200 |
+
+Es poco para la base (SQLite alcanza sin problema), pero mucho para una pantalla: el listado
+de operaciones del rol Estudio junta todas las empresas, y en pocos años son decenas de miles
+de filas. **Es lo que justifica la búsqueda y la paginación** en los listados.
+
 ---
 
 ## El problema del separador decimal
@@ -92,8 +162,8 @@ es-AR, `87190.09` se interpreta como `8719009`: el punto se lee como separador d
   campo vacío **no es cero**: en un `decimal?` llega como `null` (y la obligatoriedad la
   decide su `[Required]`); en un `decimal` es el error "Ingresá un importe.".
 - **En el archivo de SICORE**, `GeneradorArchivoSicore` formatea siempre con
-  `CultureInfo.InvariantCulture` y después reemplaza el punto por coma. Es la causa de los
-  rechazos de AFIP que hoy sufre el estudio.
+  `CultureInfo.InvariantCulture` y después reemplaza el punto por coma. Es una de las dos
+  causas de los rechazos de AFIP que hoy sufre el estudio (ver "Archivo de SICORE").
 
 Qué cubre cada test, de verdad:
 
@@ -221,36 +291,6 @@ alcanza con ocultar enlaces en la interfaz. Un enlace oculto no impide escribir 
 mano: cada consulta de operaciones, proveedores, certificados y SICORE tiene que restringirse
 a la empresa del usuario autenticado.
 
-### Pendiente de confirmar con el contador: comprobante repetido
-
-Hoy el sistema **avisa pero no bloquea** cuando se carga una operación con el mismo
-comprobante (tipo, punto de venta y número) del mismo proveedor que otra operación vigente.
-El aviso aparece en el panel de cálculo y en la confirmación, con el certificado y la fecha
-de la operación existente, y el operador puede seguir.
-
-El motivo es del negocio: **la retención se practica al pagar, no al facturar**, así que una
-factura pagada en dos cuotas genera dos retenciones legítimas con el mismo comprobante. Las
-operaciones anuladas no cuentan como repetidas, porque volver a cargar un comprobante
-después de anular su operación es la forma normal de corregir un error.
-
-Falta que el contador del estudio confirme ese criterio. Si dijera que el mismo comprobante
-no puede repetirse, el control está en `ServicioRegistroOperaciones.OperacionesConMismoComprobanteAsync`
-y pasaría de aviso a validación.
-
-### Pendiente de confirmar con el contador: operaciones de un cliente dado de baja
-
-Hoy dar de baja un cliente sólo lo saca del selector de SICORE y de la interfaz: el listado
-de Clientes no ofrece "Nueva operación" en su fila. Pero **el servidor no lo impide**:
-`OperacionesController` acepta registrar una operación para un cliente de baja si se llega
-por la URL.
-
-No se agregó la validación a propósito. Puede aparecer una operación atrasada de un cliente
-al que el estudio dejó de atender, y habría que poder registrarla. Falta que el contador
-confirme si se permite (y en ese caso, si conviene reactivar al cliente o habilitar la carga
-sin reactivarlo) o si se bloquea. Si se bloquea, la validación va en el servidor, en el
-registro de la operación, no sólo en la vista: mismo criterio que el filtro por `ClienteId`
-del rol Cliente.
-
 ### Resuelto: la regla 9 (vigencia de los regímenes) en el cálculo
 
 Hasta octubre de 2026 el cálculo no miraba la vigencia: los desplegables listaban todas las
@@ -279,28 +319,123 @@ Cómo quedó:
   se tocaron y siguen en verde. El escenario de dos versiones está cubierto en
   `ReglaVigenciaRegistroTests`, no en el seed: el seed no lleva valores que AFIP no dictó.
 
-### Pendiente de confirmar con el contador: cambio de valores a mitad de mes
+### Confirmado: valores que cambian a mitad de mes
 
-Si AFIP cambia los valores de un régimen a mitad de mes, hoy cada operación usa la versión
-vigente a su fecha, y el acumulado del mes junta las dos versiones. La operación posterior al
-cambio aplica los valores **nuevos a todo el acumulado del mes** y descuenta lo retenido con
-los viejos. Ejemplo (valores inventados): $ 400.000 el 10/09 con la versión vieja (2 %,
-$ 224.000 no sujeto) retiene $ 3.520; $ 300.000 el 20/09 con la nueva (3 %, $ 300.000 no
-sujeto) retiene $ 8.480.
+El contador confirmó que los valores de la RG 830 rigen siempre desde el día 1 de un mes
+(regla 15), así que el caso no se da. Queda anotado qué haría el motor si pasara: cada
+operación usa la versión vigente a su fecha, y la posterior al cambio aplica los valores
+**nuevos a todo el acumulado del mes** y descuenta lo retenido con los viejos. Ejemplo
+(valores inventados): $ 400.000 el 10/09 con la versión vieja (2 %, $ 224.000 no sujeto)
+retiene $ 3.520; $ 300.000 el 20/09 con la nueva (3 %, $ 300.000 no sujeto) retiene
+$ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes_el_acumulado_junta_las_dos`.
 
-Es coherente con cómo trabaja el motor, pero el criterio correcto es una decisión del negocio
-y **no está confirmado**. Lo fija el test
-`ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes_el_acumulado_junta_las_dos`:
-si el contador indica otro criterio, ese test es el que hay que cambiar primero.
+### Pendiente para la próxima sesión de código: nombres oficiales del SICORE
+
+- Los comentarios de `GeneradorArchivoSicore` usan nombres propios para algunos campos
+  ("Fecha del boletín de exclusión", "Número de certificado"...). Hay que pasarlos a los
+  nombres de la especificación oficial (ver la tabla en "Archivo de SICORE"). La numeración
+  de posiciones ya es la oficial y no cambia.
+- `README.md` y el comentario de `GeneradorArchivoSicoreTests` todavía dicen que el formato
+  salió por ingeniería inversa. Hay que agregar contra qué documento se validó.
+
+### Pendientes para después de la entrega del 16 de noviembre de 2026
+
+1. **Pantalla para cargar versiones nuevas de los regímenes.** Es el más urgente de la
+   lista: el contador avisó que el anexo de la RG 830 no se actualiza hace años y hay
+   presión para que lo cambien pronto. Hoy la pantalla de Regímenes es sólo de consulta: una
+   versión nueva únicamente se carga por código (seed) o directo en la base. La pantalla agrega una versión nueva con su fecha de vigencia; no
+   edita la vigente, porque las operaciones ya registradas guardan la versión con la que se
+   calcularon (regla 9).
+2. **Guardar el PDF al emitir el certificado** (regla 14). Después, descargar un certificado
+   devuelve el PDF guardado, no uno armado de nuevo con los datos actuales.
+3. **La tabla completa de tipos de comprobante, con la orden de pago** (regla 12). Los tipos
+   están repetidos en dos lugares que hay que mantener iguales:
+   `FormatoComprobante.Tipos` (Web) y `GeneradorCertificadoPdf.DescribirComprobante`.
+   Conviene dejarlos en un solo lugar al ampliarlos. Ojo con el SICORE: ver el pendiente de
+   prioridad alta en "Archivo de SICORE".
+4. **Cargar la tabla completa de regímenes de la RG 830.** Hoy el seed trae sólo 78, 94 y
+   116. Con datos reales del anexo, nunca inventados (regla 9).
+5. **Búsqueda y paginación en los listados.** La justifica el volumen esperado.
+
+Las reglas confirmadas 10, 11, 13 y 14 todavía no están implementadas. Su orden respecto de
+la entrega no está decidido.
 
 ---
 
-## Riesgo abierto más importante
+## Archivo de SICORE
 
-El formato del archivo de SICORE (registro de 145 posiciones fijas) fue **deducido por
-ingeniería inversa** del archivo real que presentó el estudio, no de la especificación
-oficial de AFIP. Se reproduce carácter por carácter contra ese archivo, pero **debe
-validarse contra la especificación oficial antes de usarse en producción**.
+### Formato: validado contra la especificación oficial, salvo un campo
+
+El registro de 145 posiciones fijas se dedujo primero por ingeniería inversa del archivo
+real que presentó el estudio. En octubre de 2026 se comparó campo por campo contra el
+documento oficial de AFIP **"Formatos de Importación — Estándar Retenciones, Versión 9.0"**
+y coincide en las 17 posiciones. El riesgo de formato **quedó acotado a un único campo**, el
+132-145 (ver abajo). El resto del formato está validado.
+
+| Pos. | Campo | Tipo | Valor que escribe el sistema |
+|---|---|---|---|
+| 1-2 | Código de comprobante | Entero (2) | `TipoComprobante` |
+| 3-12 | Fecha de emisión del comprobante | Fecha (10) | dd/MM/yyyy |
+| 13-28 | Número del comprobante | Texto (16) | punto de venta (5) + número (8), espacios a la derecha |
+| 29-44 | Importe del comprobante | Decimal (16) | |
+| 45-48 | Código de impuesto | Entero (4) | `0217` (Ganancias) |
+| 49-51 | Código de régimen | Entero (3) | `Regimen.Codigo` |
+| 52 | Código de operación | Entero (1) | `1` (retención) |
+| 53-66 | Base de cálculo | Decimal (14) | el **acumulado del mes**, no el importe suelto |
+| 67-76 | Fecha de emisión de la retención | Fecha (10) | |
+| 77-78 | Código de condición | Entero (2) | `01` |
+| 79 | Retención a sujetos suspendidos | Entero (1) | `0` |
+| 80-93 | Importe de la retención | Decimal (14) | |
+| 94-99 | Porcentaje de exclusión | Decimal (6) | `000,00` |
+| 100-109 | Fecha publicación o fin de vigencia | Fecha (10) | `00/00/0000` |
+| 110-111 | Tipo de documento del retenido | Entero (2) | `80` (CUIT) |
+| 112-131 | Número de documento del retenido | Texto (20) | CUIT sin guiones, ceros a la izquierda |
+| 132-145 | Número certificado original | Entero (14) | el número del certificado emitido (ver abajo) |
+
+Los decimales llevan coma, dos decimales, sin separador de miles y ceros a la izquierda.
+
+**El campo 132-145: validado contra una presentación aceptada, pendiente de confirmar
+contra la descripción oficial del campo.** La especificación lo llama "certificado
+*original*", un nombre que en los formatos de AFIP suele referirse al certificado que se
+modifica o anula, y el documento disponible trae sólo la tabla de posiciones, sin
+descripciones. El sistema escribe el número del certificado emitido. Lo respalda un
+argumento empírico: en el archivo real del estudio ese campo lleva los números de
+certificado correlativos, ese archivo se importó en SICORE y se presentó, y las causas de
+rechazo que menciona el contador son otras. Falta que el contador confirme si esa
+presentación fue aceptada sin observaciones. Si el campo tuviera que ir en ceros, cambian el
+generador y los cinco golden tests del SICORE.
+
+### Por qué AFIP rechaza los archivos
+
+Confirmado por el contador (consulta de octubre de 2026). Son dos causas:
+
+1. **Un registro que no mide exactamente 145 caracteres.**
+2. **El separador decimal.** Lo resuelve `GeneradorArchivoSicore` formateando con
+   `CultureInfo.InvariantCulture` y reemplazando el punto por coma (ver "El problema del
+   separador decimal"). Lo cubre el test que genera la misma línea bajo dos culturas.
+
+### Pendiente de PRIORIDAD ALTA: el largo de 145 no está garantizado
+
+La causa de rechazo 1 **no está cubierta.** El generador rellena cada campo hasta su ancho,
+pero nunca recorta ni avisa: un valor que no entra en su campo produce, sin ningún error, un
+renglón de más de 145 caracteres que AFIP rechaza. Los tests verifican `Length == 145` sólo
+en siete operaciones fijas, con valores que entran holgados.
+
+El caso que lo vuelve probable es la **orden de pago**: el contador confirmó que se usa
+cuando una factura se paga en cuotas (regla 12), y puede traer otro formato de numeración
+que desborde el campo 13-28, armado hoy como punto de venta (5) + número (8). También
+desbordan un tipo de comprobante de tres dígitos o un importe demasiado grande.
+
+Qué hay que hacer:
+
+- **El generador tiene que fallar ruidosamente** cuando un valor no entra en su campo, con
+  un error que nombre la operación, el campo y el valor, en lugar de producir un renglón
+  mal medido. Un archivo que no se genera se nota; uno mal medido se descubre cuando AFIP lo
+  rechaza.
+- **Un test que garantice que todo renglón generado mide exactamente 145**, incluidos
+  valores en el límite de cada campo, y otro que verifique el error cuando un valor no
+  entra.
+- Hacerlo **antes** de agregar la orden de pago como tipo de comprobante.
 
 ---
 
