@@ -13,13 +13,23 @@
 
 <div class="alert alert-danger" style="max-width:640px">
     La operación <strong>no se borra</strong>: queda registrada como anulada,
-    con el motivo, la fecha y quién la anuló. El número de certificado
-    @Model.NumeroCertificado no se reutiliza, para no dejar salteos en la
-    numeración.
+    con el motivo, la fecha y quién la anuló.
+    @if (Model.TieneCertificado)
+    {
+        <text>El número de certificado @Model.NumeroCertificado no se reutiliza, para no dejar
+        salteos en la numeración.</text>
+    }
+    else
+    {
+        @* Regla 10: no retuvo, así que no hay certificado que invalidar. Lo único que
+           cambia es que deja de sumar al acumulado del mes. *@
+        <text>Esta operación no emitió certificado, porque no retuvo. Al anularla deja
+        de sumar al acumulado del mes de este proveedor.</text>
+    }
 </div>
 
 <div class="card mb-3" style="max-width:640px">
-    <div class="card-header">Certificado N° @Model.NumeroCertificado</div>
+    <div class="card-header">@(Model.TieneCertificado ? $"Certificado N° {Model.NumeroCertificado}" : "Operación sin certificado")</div>
     <table class="table mb-0">
         <tbody>
             <tr><td>Cliente</td><td>@Model.Cliente?.RazonSocial</td></tr>

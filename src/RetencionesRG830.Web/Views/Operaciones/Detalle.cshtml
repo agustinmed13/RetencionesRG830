@@ -21,7 +21,7 @@
 }
 <div class="card" style="max-width: 640px">
     <div class="card-header">
-        Certificado Nº @Model.NumeroCertificado — @Model.Cliente?.RazonSocial
+        @(Model.TieneCertificado ? $"Certificado Nº {Model.NumeroCertificado}" : "Operación sin certificado") — @Model.Cliente?.RazonSocial
     </div>
     <table class="table mb-0">
         <tbody>
@@ -39,11 +39,24 @@
     </table>
 </div>
 
+@* Regla 10: sin retención no hay certificado que descargar. En su lugar, el motivo
+   y la base con que se calculó, para que se vea que la operación sí cuenta. *@
+@if (!Model.TieneCertificado)
+{
+    <p class="mt-3" style="max-width: 640px">
+        @RetencionesRG830.Web.Infraestructura.FormatoComprobante.MotivoSinCertificado
+        Base acumulada del mes con esta operación: @Model.BaseCalculoAcumulada.ToString("C2").
+    </p>
+}
+
 <p class="mt-3">
     <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
     @if (!Model.Anulada)
     {
-        <a asp-action="Certificado" asp-route-id="@Model.Id" class="btn btn-success" target="_blank">Descargar certificado (PDF)</a>
+        @if (Model.TieneCertificado)
+        {
+            <a asp-action="Certificado" asp-route-id="@Model.Id" class="btn btn-success" target="_blank">Descargar certificado (PDF)</a>
+        }
         <a asp-action="Create" asp-route-clienteId="@Model.ClienteId" class="btn btn-primary">Cargar otra</a>
         <a asp-action="Anular" asp-route-id="@Model.Id" class="btn btn-outline-danger">Anular</a>
     }

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace RetencionesRG830.Domain.Entidades;
 
 /// <summary>
@@ -54,8 +56,20 @@ public class Operacion
     /// Numeración correlativa asignada por el sistema al confirmar la
     /// operación (nunca por el usuario a mano, para evitar los números
     /// repetidos o salteados que hoy sufre el estudio).
+    ///
+    /// Es null cuando la operación no emitió certificado porque la retención a
+    /// practicar dio $ 0 (regla 10). Esa operación igual se registra, porque suma
+    /// al acumulado del mes, pero no consume número: así los certificados emitidos
+    /// quedan correlativos y sin saltos.
     /// </summary>
-    public int NumeroCertificado { get; set; }
+    public int? NumeroCertificado { get; set; }
+
+    /// <summary>
+    /// Si la operación emitió certificado. Las pantallas preguntan esto en lugar de
+    /// repetir la condición. No es una columna: se deduce del número.
+    /// </summary>
+    [NotMapped]
+    public bool TieneCertificado => NumeroCertificado is not null;
 
     // --- Auditoría: quién y cuándo cargó esta operación ---
     public int CreadoPorUsuarioId { get; set; }

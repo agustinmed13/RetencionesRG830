@@ -1291,6 +1291,18 @@ select.campo-control {
     color: var(--color-inactivo-texto);
 }
 
+/* Una operación que no retuvo y por eso no emitió certificado (regla 10). Neutro
+   de verdad: no es un error (rojo), no pide atención (ámbar) y no es una baja
+   (el gris lleno de tag-inactivo). Es una operación vigente que salió bien y en
+   la que no correspondía retener. Por eso va sólo con contorno, sobre el fondo
+   de la página, y la columna Estado de la misma fila sigue diciendo "Vigente". */
+.tag-sin-certificado {
+    background-color: var(--color-fondo);
+    border: 1px solid var(--color-borde);
+    color: var(--color-inactivo-texto);
+    font-weight: 600;
+}
+
 /* Código de régimen (78, 94, 116, 31). Se muestra el código, no "RG 830":
    la RG 830 es la norma, no el régimen. Es rectangular, a diferencia de los
    tags de estado, para que no se confundan. */

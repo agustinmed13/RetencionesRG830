@@ -15,7 +15,7 @@ namespace RetencionesRG830.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.30");
+            modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
 
             modelBuilder.Entity("RetencionesRG830.Domain.Entidades.Cliente", b =>
                 {
@@ -109,7 +109,7 @@ namespace RetencionesRG830.Infrastructure.Migrations
                     b.Property<string>("MotivoAnulacion")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("NumeroCertificado")
+                    b.Property<int?>("NumeroCertificado")
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("NumeroComprobante")

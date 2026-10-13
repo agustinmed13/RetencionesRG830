@@ -51,6 +51,12 @@ public class GeneradorArchivoSicore
             ?? throw new InvalidOperationException("La operación no trae cargado el Proveedor.");
         var regimen = operacion.Regimen
             ?? throw new InvalidOperationException("La operación no trae cargado el Régimen.");
+        // Una operación que no retuvo no emite certificado y no se informa (regla 10).
+        // Si llega hasta acá es un error de quien la seleccionó: se falla en vez de
+        // escribir un certificado en ceros, que AFIP recibiría como una retención más.
+        var numeroCertificado = operacion.NumeroCertificado
+            ?? throw new InvalidOperationException(
+                "La operación no emitió certificado (no retuvo): no se informa en SICORE.");
 
         return string.Concat(
             // 1-2    Código de comprobante
@@ -86,7 +92,7 @@ public class GeneradorArchivoSicore
             // 112-131 Número de documento
             SoloDigitos(proveedor.Cuit).PadLeft(20, '0'),
             // 132-145 Número de certificado
-            operacion.NumeroCertificado.ToString("D14", CultureInfo.InvariantCulture));
+            numeroCertificado.ToString("D14", CultureInfo.InvariantCulture));
     }
 
     private static string Fecha(DateOnly fecha)

@@ -24,6 +24,12 @@ public class GeneradorCertificadoPdf
             ?? throw new InvalidOperationException("La operación no trae cargado el Proveedor.");
         var regimen = operacion.Regimen
             ?? throw new InvalidOperationException("La operación no trae cargado el Régimen.");
+        // Una operación que no retuvo no emite certificado (regla 10). Se falla en
+        // vez de imprimir un certificado sin número por $ 0: sería un documento
+        // fiscal que no tendría que existir.
+        var numeroCertificado = operacion.NumeroCertificado
+            ?? throw new InvalidOperationException(
+                "La operación no emitió certificado (no retuvo): no hay certificado que generar.");
 
         return Document.Create(doc =>
         {
@@ -43,7 +49,7 @@ public class GeneradorCertificadoPdf
 
                     col.Item().AlignRight().Column(c =>
                     {
-                        c.Item().Text($"Certificado N° {operacion.NumeroCertificado}").Bold();
+                        c.Item().Text($"Certificado N° {numeroCertificado}").Bold();
                         c.Item().Text($"Fecha: {operacion.FechaRetencion:dd/MM/yyyy}");
                     });
 

@@ -51,8 +51,10 @@ public class OperacionesController : Controller
         }
 
         var operaciones = await query
+            // Dentro del mismo día, por orden de carga y no por número de certificado:
+            // las operaciones que no retuvieron no tienen número (regla 10).
             .OrderByDescending(o => o.FechaRetencion)
-            .ThenByDescending(o => o.NumeroCertificado)
+            .ThenByDescending(o => o.Id)
             .ToListAsync();
 
         return View(operaciones);
@@ -161,7 +163,9 @@ public class OperacionesController : Controller
         modelo.RegimenNombre = regimen.Descripcion;
         modelo.RegimenCodigo = regimen.Codigo;
         modelo.RegimenVigenciaDesde = regimen.VigenciaDesde;
-        modelo.ProximoNumeroCertificado = await _registro.SiguienteNumeroCertificadoAsync(modelo.ClienteId);
+        // Sólo se anticipa un número si se va a emitir certificado (regla 10).
+        if (modelo.EmiteCertificado)
+            modelo.ProximoNumeroCertificado = await _registro.SiguienteNumeroCertificadoAsync(modelo.ClienteId);
         await CompletarAvisosAsync(modelo);
 
         return View("Confirmar", modelo);
@@ -427,6 +431,13 @@ public class OperacionesController : Controller
         if (operacion.Anulada)
         {
             TempData["Mensaje"] = "No se puede emitir el certificado de una operación anulada.";
+            return RedirectToAction(nameof(Detalle), new { id });
+        }
+        // Regla 10: una operación que no retuvo no tiene certificado. El detalle no
+        // ofrece la descarga, pero la URL se puede escribir a mano.
+        if (!operacion.TieneCertificado)
+        {
+            TempData["Mensaje"] = "Esta operación no tiene certificado: no retuvo, porque no alcanzó el mínimo.";
             return RedirectToAction(nameof(Detalle), new { id });
         }
 

@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 130 tests, deben dar todos verde
+dotnet test                                      # 138 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -87,12 +87,22 @@ código. Mientras una figure como "no implementada", el sistema la viola.
 10. **Una operación que no alcanza el mínimo de retención no emite certificado, pero se
     registra.** Tiene que sumar al acumulado del mes: si no se guardara, el pago siguiente
     al mismo proveedor calcularía sobre una base incompleta. Queda registrada, **sin número
-    de certificado, y no se informa en SICORE.**
-    *Hoy:* no implementada. El motor ya da retención 0 con la observación "Retención mínima",
-    pero `ServicioRegistroOperaciones.RegistrarAsync` le asigna número de certificado a toda
-    operación, `Operacion.NumeroCertificado` es `int` (no admite "sin número") y
-    `SicoreController` informa todas las no anuladas, también las de retención cero.
-    Implementarla toca el modelo de datos (migración), la numeración, el PDF y SICORE.
+    de certificado, y no se informa en SICORE.** Respuesta textual del contador: "Una
+    operación podría no generar retención si no alcanza el mínimo, por lo que no debería
+    emitirse ningún certificado." No distingue causas: **sin certificado cuando la retención
+    a practicar es $ 0, por cualquier causa** (el acumulado no llegó al monto no sujeto, o lo
+    que falta retener queda debajo del mínimo).
+    *Hoy:* implementada (octubre de 2026). `Operacion.NumeroCertificado` es `int?` (migración
+    `NumeroCertificadoOpcional`) y `Operacion.TieneCertificado` lo pregunta.
+    `RegistrarAsync` asigna número sólo si la retención es mayor que 0: la que no retiene no
+    consume correlativo, así que los certificados emitidos no tienen saltos. La selección de
+    SICORE pasó del controlador a `ServicioRegistroOperaciones.OperacionesParaSicoreAsync`,
+    con test, y deja afuera las operaciones sin certificado. Los dos generadores (SICORE y PDF)
+    fallan si reciben una operación sin número. La confirmación, el listado (tag neutro
+    "Sin certificado"), el detalle (el motivo en lugar del botón del PDF) y Anular lo dicen.
+    Las bases de desarrollo creadas antes pueden tener operaciones con $ 0 **y** número: se
+    registraron antes de la regla, la migración no las toca. Si molestan, se borra la base y
+    el seed la vuelve a crear.
 
 11. **No se registran operaciones de un cliente dado de baja.** No existen operaciones
     atrasadas: el estudio da de baja a un cliente el día 1 de un mes, después de cerrar el
@@ -218,7 +228,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-130 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+138 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 
@@ -387,8 +397,46 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
    116. Con datos reales del anexo, nunca inventados (regla 9).
 5. **Búsqueda y paginación en los listados.** La justifica el volumen esperado.
 
-Las reglas confirmadas 10, 11, 13 y 14 todavía no están implementadas. Su orden respecto de
-la entrega no está decidido.
+De las reglas confirmadas, la 14 (no reimprimir: guardar el PDF emitido) es la única que
+todavía no está implementada. Va con el pendiente 2.
+
+### Pregunta para el contador: anular no recalcula las operaciones posteriores del mes
+
+Anular una operación la saca del acumulado del mes, pero **no recalcula las posteriores del
+mismo proveedor y régimen**, que ya se calcularon contando con ella.
+
+- **Con certificado emitido** está bien que no se recalculen: los certificados son documentos
+  ya entregados al proveedor.
+- **Sin certificado** (regla 10) el planteo cambia. Si se anula una operación sin certificado
+  del día 5, las del día 20 quedan calculadas sobre una base acumulada que ya no existe.
+
+Pregunta: ¿cómo se corrige en la operatoria del estudio? ¿Anulando y volviendo a cargar las
+posteriores, o de otra forma? Es una decisión del contador, no del sistema. Hoy el sistema no
+recalcula nada al anular.
+
+### Para la sesión de migración a SQL Server
+
+Se hace en una sesión propia, sin otros cambios: si algo se rompe, tiene que quedar claro que
+fue el cambio de motor. Las migraciones actuales son propias de SQLite (los `decimal` se
+guardan como `TEXT`): para SQL Server se genera una migración inicial nueva desde el modelo.
+
+- **VERIFICACIÓN OBLIGATORIA: el índice único `(ClienteId, NumeroCertificado)` tiene que
+  tener el filtro `WHERE [NumeroCertificado] IS NOT NULL`.** En SQLite los `NULL` no chocan
+  en un índice único. En SQL Server sí: un índice único común admite un solo `NULL` por
+  cliente. El proveedor de SQL Server de EF Core agrega el filtro por convención a los
+  índices únicos sobre columnas anulables, pero hay que **verlo escrito en la migración
+  generada**, no suponerlo. **Síntoma si falta:** el sistema funciona bien, emite
+  certificados, registra la primera operación que no llega al mínimo, y falla recién con la
+  **segunda** operación por debajo del mínimo del mismo cliente. Es un error que aparece tarde
+  y en producción, no en una prueba rápida.
+- **Dos confirmaciones simultáneas para el mismo cliente reciben el mismo número.**
+  `RegistrarAsync` calcula `Max(NumeroCertificado) + 1` y después guarda: si dos personas
+  confirman a la vez, las dos calculan el mismo número. El índice único rechaza la segunda,
+  pero con un error 500 y la operación sin registrar. Es previo a la regla 10. Se resuelve
+  con una transacción que abarque el cálculo del número y el guardado.
+- Para generar migraciones hace falta la herramienta `dotnet-ef` versión 8 (`dotnet tool
+  install -g dotnet-ef --version "8.*"`). No está en el repositorio: se instala en cada
+  máquina.
 
 ---
 

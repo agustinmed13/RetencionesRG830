@@ -72,7 +72,7 @@
                de registrar la operación. *@
             <button type="submit" asp-action="Corregir" class="boton boton-neutro">Corregir datos</button>
             <button type="submit" class="boton boton-primario boton-grande">
-                <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-check" /></svg>Confirmar y emitir certificado
+                <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-check" /></svg>@(Model.EmiteCertificado ? "Confirmar y emitir certificado" : "Confirmar y registrar")
             </button>
         </form>
     </div>
@@ -82,14 +82,30 @@
             <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué pasa al confirmar
         </h2>
         <div class="panel-texto">
-            <p>Se asigna el certificado <b class="numero-certificado">N° @FormatoComprobante.NumeroCertificado(Model.ProximoNumeroCertificado)</b>, el siguiente correlativo de este agente de retención.</p>
+            @* Regla 10: sin retención no hay certificado ni SICORE, pero la operación
+               se registra igual porque suma al acumulado del mes. *@
+            @if (Model.EmiteCertificado)
+            {
+                <p>Se asigna el certificado <b class="numero-certificado">N° @FormatoComprobante.NumeroCertificado(Model.ProximoNumeroCertificado)</b>, el siguiente correlativo de este agente de retención.</p>
+            }
+            else
+            {
+                <p><b>@FormatoComprobante.MotivoSinCertificado</b></p>
+            }
             <p>La operación pasa a integrar el acumulado mensual de @Model.ProveedorNombre en el régimen @Model.RegimenCodigo.</p>
-            <p>Se informa en el archivo para SICORE del período @Model.FechaRetencion.ToString("MM/yyyy").</p>
+            @if (Model.EmiteCertificado)
+            {
+                <p>Se informa en el archivo para SICORE del período @Model.FechaRetencion.ToString("MM/yyyy").</p>
+            }
+            else
+            {
+                <p>No se informa en SICORE: no hay retención que informar.</p>
+            }
             <p>Queda registrado que la cargó @(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value) el @DateTime.Today.ToString("dd/MM/yyyy").</p>
         </div>
         <div class="nota-panel nota-panel-alerta">
             <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
-            <span>Una operación registrada no se borra. Si tiene un error, se anula indicando el motivo y conserva su número de certificado.</span>
+            <span>Una operación registrada no se borra. Si tiene un error, se anula indicando el motivo@(Model.EmiteCertificado ? " y conserva su número de certificado" : "").</span>
         </div>
     </aside>
 </div>

@@ -99,8 +99,18 @@ else if (!todosLosClientes && clienteRazonSocial is not null && !clienteActivo)
                 {
                     <tr class="@(op.Anulada ? "fila-anulada" : "")">
                         <td>
-                            <a class="numero-certificado enlace-certificado" asp-action="Detalle" asp-route-id="@op.Id"
-                               title="Ver el detalle de la operación">@FormatoComprobante.NumeroCertificado(op.NumeroCertificado)</a>
+                            @* Sin certificado (regla 10): la retención dio $ 0. Igual lleva al
+                               detalle, que explica por qué no se emitió. *@
+                            @if (op.NumeroCertificado is int numero)
+                            {
+                                <a class="numero-certificado enlace-certificado" asp-action="Detalle" asp-route-id="@op.Id"
+                                   title="Ver el detalle de la operación">@FormatoComprobante.NumeroCertificado(numero)</a>
+                            }
+                            else
+                            {
+                                <a class="tag tag-sin-certificado" asp-action="Detalle" asp-route-id="@op.Id"
+                                   title="No retuvo, así que no emitió certificado. Ver el detalle.">Sin certificado</a>
+                            }
                         </td>
                         @if (todosLosClientes)
                         {

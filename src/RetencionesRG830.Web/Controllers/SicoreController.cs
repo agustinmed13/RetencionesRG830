@@ -13,11 +13,14 @@ public class SicoreController : Controller
 {
     private readonly RetencionesRG830DbContext _db;
     private readonly GeneradorArchivoSicore _generador;
+    private readonly ServicioRegistroOperaciones _registro;
 
-    public SicoreController(RetencionesRG830DbContext db, GeneradorArchivoSicore generador)
+    public SicoreController(RetencionesRG830DbContext db, GeneradorArchivoSicore generador,
+        ServicioRegistroOperaciones registro)
     {
         _db = db;
         _generador = generador;
+        _registro = registro;
     }
 
     public async Task<IActionResult> Index()
@@ -38,16 +41,9 @@ public class SicoreController : Controller
         var cliente = await _db.Clientes.FindAsync(clienteId);
         if (cliente is null) return NotFound();
 
-        // El filtro es por fecha de RETENCIÓN, que es la que define el
-        // período que se presenta, no la fecha del comprobante.
-        var operaciones = await _db.Operaciones
-            .Include(o => o.Proveedor)
-            .Include(o => o.Regimen)
-            .Where(o => o.ClienteId == clienteId
-             && !o.Anulada
-             && o.FechaRetencion >= desde
-             && o.FechaRetencion <= hasta)
-            .ToListAsync();
+        // Qué se informa (vigentes, con certificado, por fecha de retención) lo decide
+        // el servicio, que tiene test: ServicioRegistroOperacionesTests.
+        var operaciones = await _registro.OperacionesParaSicoreAsync(clienteId, desde, hasta);
 
         if (operaciones.Count == 0)
         {

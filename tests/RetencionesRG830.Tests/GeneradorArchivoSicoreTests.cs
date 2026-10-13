@@ -140,4 +140,21 @@ public class GeneradorArchivoSicoreTests
         Assert.Equal(2, lineas.Length);
         Assert.All(lineas, l => Assert.Equal(145, l.Length));
     }
+
+    /// <summary>
+    /// Una operación que no retuvo no emitió certificado y no se informa (regla 10).
+    /// La selección ya la deja afuera (OperacionesParaSicoreAsync); si igual llegara
+    /// al generador, falla en lugar de escribir un certificado en ceros, que AFIP
+    /// recibiría como una retención más.
+    /// </summary>
+    [Fact]
+    public void Una_operacion_sin_certificado_no_se_escribe_en_el_archivo()
+    {
+        var operacion = CrearOperacion(
+            "04/09/2026", 1, 3001, 100000m, 100000m,
+            "04/09/2026", 0m, "20-31456789-8", 1);
+        operacion.NumeroCertificado = null;
+
+        Assert.Throws<InvalidOperationException>(() => new GeneradorArchivoSicore().GenerarLinea(operacion));
+    }
 }

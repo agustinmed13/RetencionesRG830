@@ -98,6 +98,12 @@ public class OperacionViewModel
     public int ProximoNumeroCertificado { get; set; }
 
     /// <summary>
+    /// Si al confirmar se va a emitir certificado: sólo cuando hay algo que retener
+    /// (regla 10). Es la misma condición que usa ServicioRegistroOperaciones.
+    /// </summary>
+    public bool EmiteCertificado => Resultado?.RetencionAPracticar > 0;
+
+    /// <summary>
     /// Texto debajo del régimen: la alícuota que corresponde al proveedor elegido y
     /// por qué. Lo arma el servidor con la misma regla que usa el cálculo.
     /// </summary>

@@ -110,7 +110,17 @@ public class ServicioRegistroOperaciones
         var resultado = await SimularAsync(operacion);
 
         operacion.MontoRetenido = resultado.RetencionAPracticar;
-        operacion.NumeroCertificado = await SiguienteNumeroCertificadoAsync(operacion.ClienteId);
+
+        // Regla 10 (consulta al contador, octubre de 2026): "Una operación podría no
+        // generar retención si no alcanza el mínimo, por lo que no debería emitirse
+        // ningún certificado." Sin certificado cuando la retención a practicar es
+        // $ 0, por cualquier causa: el acumulado no llegó al monto no sujeto, o lo
+        // que falta retener queda debajo del mínimo. La operación igual se guarda,
+        // porque suma al acumulado del mes. Sin número no consume correlativo, así
+        // que los certificados emitidos no tienen saltos.
+        operacion.NumeroCertificado = resultado.RetencionAPracticar > 0
+            ? await SiguienteNumeroCertificadoAsync(operacion.ClienteId)
+            : null;
         operacion.FechaCarga = DateTime.Now;
 
         _db.Operaciones.Add(operacion);
@@ -189,12 +199,37 @@ public class ServicioRegistroOperaciones
     /// </summary>
     public async Task<int> SiguienteNumeroCertificadoAsync(int clienteId)
     {
+        // Max ignora las operaciones sin número (las que no retuvieron) y cuenta
+        // las anuladas, que conservan el suyo: así el número no se reutiliza.
         var ultimo = await _db.Operaciones
             .Where(o => o.ClienteId == clienteId)
-            .MaxAsync(o => (int?)o.NumeroCertificado) ?? 0;
+            .MaxAsync(o => o.NumeroCertificado) ?? 0;
 
         return ultimo + 1;
     }
+
+    /// <summary>
+    /// Las operaciones que se informan en el archivo de SICORE: las del cliente con
+    /// fecha de retención dentro del rango que emitieron certificado y no están
+    /// anuladas, con proveedor y régimen cargados, que necesita el generador. Una
+    /// operación sin certificado no retuvo nada, así que no hay retención que
+    /// informar (regla 10).
+    ///
+    /// El filtro es por fecha de RETENCIÓN, que es la que define el período que se
+    /// presenta, no la fecha del comprobante. Antes esta consulta estaba en
+    /// SicoreController, sin test: qué se le informa a AFIP no puede quedar sin
+    /// probar.
+    /// </summary>
+    public Task<List<Operacion>> OperacionesParaSicoreAsync(int clienteId, DateOnly desde, DateOnly hasta) =>
+        _db.Operaciones
+            .Include(o => o.Proveedor)
+            .Include(o => o.Regimen)
+            .Where(o => o.ClienteId == clienteId
+                     && !o.Anulada
+                     && o.NumeroCertificado != null
+                     && o.FechaRetencion >= desde
+                     && o.FechaRetencion <= hasta)
+            .ToListAsync();
         /// <summary>
     /// Anula una operación. No la borra: queda registrada con el motivo,
     /// la fecha y quién la anuló, pero deja de sumar al acumulado del mes
