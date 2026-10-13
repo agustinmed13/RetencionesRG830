@@ -109,7 +109,7 @@ public class OperacionesController : Controller
         // comprobante a medio escribir) no importan acá: los valida Revisar.
         var faltanDatos = modelo.ProveedorId <= 0
             || modelo.CodigoRegimen <= 0
-            || modelo.ImporteGravado <= 0
+            || modelo.ImporteGravado is null or <= 0
             || modelo.FechaRetencion == default;
 
         // El proveedor tiene que ser de este cliente: si no, el acumulado del mes
@@ -292,11 +292,12 @@ public class OperacionesController : Controller
             || !FormatoComprobante.Tipos.Any(t => t.Codigo == modelo.TipoComprobante))
             ReemplazarError(nameof(modelo.TipoComprobante), "Elegí el tipo de comprobante.");
 
-        if (modelo.PuntoVenta <= 0)
+        if (modelo.PuntoVenta is null or <= 0)
             ReemplazarError(nameof(modelo.PuntoVenta), "Indicá el punto de venta: un número mayor que 0.");
-        if (modelo.NumeroComprobante <= 0)
+        if (modelo.NumeroComprobante is null or <= 0)
             ReemplazarError(nameof(modelo.NumeroComprobante), "Indicá el número del comprobante: un número mayor que 0.");
 
+        // Con uno de los dos vacío la comparación da false: el error lo da [Required].
         if (modelo.ImporteGravado > modelo.ImporteComprobante)
             ModelState.AddModelError(nameof(modelo.ImporteGravado),
                 "El importe gravado no puede ser mayor al total del comprobante.");
@@ -350,10 +351,24 @@ public class OperacionesController : Controller
     private bool TieneError(string campo) =>
         ModelState.TryGetValue(campo, out var entrada) && entrada.Errors.Count > 0;
 
-    /// <summary>Saca los errores que ya tenga un campo y deja sólo el mensaje dado.</summary>
+    /// <summary>
+    /// Saca los errores que ya tenga un campo y deja sólo el mensaje dado, conservando
+    /// lo que escribió el operador.
+    ///
+    /// ModelState.Remove borra la entrada entera, y en ella también el texto recibido
+    /// (RawValue y AttemptedValue). Sin ese texto, el formulario dibuja el valor del
+    /// modelo: un punto de venta mandado vacío volvía con un 0, y uno que no se pudo
+    /// leer volvía con otra cosa que lo escrito. Por eso se guarda antes y se repone.
+    /// </summary>
     private void ReemplazarError(string campo, string mensaje)
     {
+        ModelState.TryGetValue(campo, out var anterior);
+        var recibido = anterior?.RawValue;
+        var escrito = anterior?.AttemptedValue;
+
         ModelState.Remove(campo);
+        if (anterior is not null)
+            ModelState.SetModelValue(campo, recibido, escrito);
         ModelState.AddModelError(campo, mensaje);
     }
 
@@ -371,12 +386,14 @@ public class OperacionesController : Controller
         ProveedorId = modelo.ProveedorId,
         RegimenId = regimenId,
         TipoComprobante = modelo.TipoComprobante,
-        PuntoVenta = modelo.PuntoVenta,
-        NumeroComprobante = modelo.NumeroComprobante,
+        // "?? 0" sólo llega a usarse en el cálculo en vivo, que no necesita punto de
+        // venta ni número. Para registrar, ValidarAsync ya exigió que estén.
+        PuntoVenta = modelo.PuntoVenta ?? 0,
+        NumeroComprobante = modelo.NumeroComprobante ?? 0,
         FechaComprobante = modelo.FechaComprobante,
         FechaRetencion = modelo.FechaRetencion,
-        ImporteComprobante = modelo.ImporteComprobante,
-        ImporteGravado = modelo.ImporteGravado,
+        ImporteComprobante = modelo.ImporteComprobante ?? 0m,
+        ImporteGravado = modelo.ImporteGravado ?? 0m,
         CreadoPorUsuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value)
     };
 

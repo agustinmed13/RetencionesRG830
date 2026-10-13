@@ -46,8 +46,8 @@
             <div class="dato"><div class="etiqueta">Régimen</div><div class="valor"><span class="regimen">@Model.RegimenCodigo</span> @Model.RegimenNombre</div><div class="texto-atenuado">Valores vigentes desde <span class="fecha">@Model.RegimenVigenciaDesde.ToString("dd/MM/yyyy")</span></div></div>
             <div class="dato"><div class="etiqueta">Fecha del comprobante</div><div class="valor fecha">@Model.FechaComprobante.ToString("dd/MM/yyyy")</div></div>
             <div class="dato"><div class="etiqueta">Fecha de la retención</div><div class="valor fecha">@Model.FechaRetencion.ToString("dd/MM/yyyy")</div></div>
-            <div class="dato"><div class="etiqueta">Importe total</div><div class="valor cifras">@Model.ImporteComprobante.ToString("C2")</div></div>
-            <div class="dato"><div class="etiqueta">Importe gravado</div><div class="valor cifras">@Model.ImporteGravado.ToString("C2")</div></div>
+            <div class="dato"><div class="etiqueta">Importe total</div><div class="valor cifras">@Model.ImporteComprobante?.ToString("C2")</div></div>
+            <div class="dato"><div class="etiqueta">Importe gravado</div><div class="valor cifras">@Model.ImporteGravado?.ToString("C2")</div></div>
         </div>
 
         @{ ViewData["Variante"] = "confirmacion"; }

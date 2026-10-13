@@ -29,11 +29,17 @@ public class OperacionViewModel
     [Display(Name = "Tipo de comprobante")]
     public int TipoComprobante { get; set; } = 1;
 
+    // Punto de venta, número e importes admiten null: vacío no es cero, la misma idea
+    // que en DecimalModelBinder. Con int o decimal, un campo vacío volvía dibujado con
+    // un 0, y abajo el mensaje decía que tenía que ser mayor que 0. Que sean
+    // obligatorios lo controlan OperacionesController.ValidarAsync (punto de venta y
+    // número) y [Required] (importes). Cuidado al compararlos: null <= 0 da false, así
+    // que "falta o no es positivo" se escribe "is null or <= 0".
     [Display(Name = "Punto de venta")]
-    public int PuntoVenta { get; set; }
+    public int? PuntoVenta { get; set; }
 
     [Display(Name = "Número de comprobante")]
-    public long NumeroComprobante { get; set; }
+    public long? NumeroComprobante { get; set; }
 
     [Display(Name = "Fecha del comprobante")]
     [DataType(DataType.Date)]
@@ -45,18 +51,20 @@ public class OperacionViewModel
 
     // Mayores que 0, no "mayores o iguales": un importe en cero no es una operación.
     // Es distinto de una operación que no alcanza el mínimo de retención, que sí se
-    // registra (regla 10). Que el campo no quede vacío lo controla DecimalModelBinder
-    // ("Ingresá un importe."): un decimal no tiene cómo representar "vacío", así que
-    // un [Required] acá no agregaría nada.
+    // registra (regla 10). Como son decimal?, DecimalModelBinder deja un campo vacío
+    // en null sin error, y el que avisa es [Required], con un mensaje que nombra el
+    // campo. Un texto que no es un importe ("5.000.000") lo rechaza el binder.
     [Display(Name = "Importe total del comprobante")]
+    [Required(ErrorMessage = "Ingresá el importe total.")]
     [Range(0, double.MaxValue, MinimumIsExclusive = true,
         ErrorMessage = "El importe total tiene que ser mayor que 0.")]
-    public decimal ImporteComprobante { get; set; }
+    public decimal? ImporteComprobante { get; set; }
 
     [Display(Name = "Importe gravado")]
+    [Required(ErrorMessage = "Ingresá el importe gravado.")]
     [Range(0, double.MaxValue, MinimumIsExclusive = true,
         ErrorMessage = "El importe gravado tiene que ser mayor que 0.")]
-    public decimal ImporteGravado { get; set; }
+    public decimal? ImporteGravado { get; set; }
         // --- Datos que sólo se usan en la pantalla de confirmación ---
 
     /// <summary>El resultado del cálculo, para mostrarlo antes de guardar.</summary>
