@@ -33,9 +33,14 @@ public class Proveedor
     [Display(Name = "Razón social")]
     public string RazonSocial { get; set; } = string.Empty;
 
+    // Regla 13 (consulta al contador, octubre de 2026): el domicilio del
+    // proveedor siempre está, porque figura en la factura. Se imprime en el
+    // certificado junto con la localidad.
+    [Required(ErrorMessage = "El domicilio es obligatorio.")]
     [StringLength(200)]
     public string Domicilio { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "La localidad es obligatoria.")]
     [StringLength(100)]
     public string Localidad { get; set; } = string.Empty;
 

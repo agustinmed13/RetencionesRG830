@@ -270,4 +270,41 @@ public class ServicioProveedoresTests : IDisposable
 
         Assert.NotEqual(500, LeerAlta().Id);
     }
+
+    // --- Textos en null -----------------------------------------------------
+    // Mismo caso que en ServicioClientesTests: un campo de texto enviado vacío
+    // llega como null, la columna NOT NULL hace fallar el guardado y el
+    // controlador lo muestra como "Ese cliente ya tiene un proveedor cargado con
+    // ese CUIT": un error falso.
+
+    [Fact]
+    public async Task Alta_con_textos_en_null_guarda_vacio_en_lugar_de_fallar()
+    {
+        var datos = AltaRecibida();
+        datos.Domicilio = null!;
+        datos.Localidad = null!;
+
+        await Crear(datos);
+
+        var creado = LeerAlta();
+        Assert.Equal(string.Empty, creado.Domicilio);
+        Assert.Equal(string.Empty, creado.Localidad);
+    }
+
+    [Fact]
+    public async Task Editar_con_textos_en_null_guarda_vacio_en_lugar_de_fallar()
+    {
+        var datos = EdicionRecibida(_clienteOriginalId);
+        datos.Domicilio = null!;
+        datos.Localidad = null!;
+
+        using (var db = new RetencionesRG830DbContext(_opciones))
+        {
+            await new ServicioProveedores(db).ActualizarAsync(datos);
+        }
+
+        var guardado = LeerDeLaBase();
+        Assert.Equal(string.Empty, guardado.Domicilio);
+        Assert.Equal(string.Empty, guardado.Localidad);
+    }
 }

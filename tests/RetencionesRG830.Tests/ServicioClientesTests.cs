@@ -185,4 +185,51 @@ public class ServicioClientesTests : IDisposable
 
         Assert.NotEqual(500, LeerAlta().Id);
     }
+
+    // --- Textos en null -----------------------------------------------------
+    // ASP.NET convierte un campo de texto enviado vacío en null, aunque la
+    // propiedad sea string y no string?. Si ese null llegaba a la base, la columna
+    // NOT NULL hacía fallar el guardado con DbUpdateException, y el controlador,
+    // que interpreta esa excepción como índice único violado, mostraba "Ya existe
+    // un cliente con ese CUIT": un error falso. Hoy [Required] impide que un campo
+    // vacío llegue hasta acá, pero el servicio no depende de eso.
+
+    [Fact]
+    public async Task Alta_con_textos_en_null_guarda_vacio_en_lugar_de_fallar()
+    {
+        var datos = AltaRecibida();
+        datos.Domicilio = null!;
+        datos.Localidad = null!;
+        datos.NombreFirmante = null!;
+        datos.CargoFirmante = null!;
+
+        await Crear(datos);
+
+        var creado = LeerAlta();
+        Assert.Equal(string.Empty, creado.Domicilio);
+        Assert.Equal(string.Empty, creado.Localidad);
+        Assert.Equal(string.Empty, creado.NombreFirmante);
+        Assert.Equal(string.Empty, creado.CargoFirmante);
+    }
+
+    [Fact]
+    public async Task Editar_con_textos_en_null_guarda_vacio_en_lugar_de_fallar()
+    {
+        var datos = EdicionRecibida();
+        datos.Domicilio = null!;
+        datos.Localidad = null!;
+        datos.NombreFirmante = null!;
+        datos.CargoFirmante = null!;
+
+        using (var db = new RetencionesRG830DbContext(_opciones))
+        {
+            await new ServicioClientes(db).ActualizarAsync(datos);
+        }
+
+        var guardado = LeerDeLaBase();
+        Assert.Equal(string.Empty, guardado.Domicilio);
+        Assert.Equal(string.Empty, guardado.Localidad);
+        Assert.Equal(string.Empty, guardado.NombreFirmante);
+        Assert.Equal(string.Empty, guardado.CargoFirmante);
+    }
 }

@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 109 tests, deben dar todos verde
+dotnet test                                      # 113 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -115,7 +115,8 @@ código. Mientras una figure como "no implementada", el sistema la viola.
     Recibo (ver pendientes).
 
 13. **El domicilio del proveedor es obligatorio.** Siempre está, porque figura en la factura.
-    *Hoy:* no implementada. `Proveedor.Domicilio` no tiene `[Required]`.
+    *Hoy:* implementada. `Proveedor.Domicilio` y `Proveedor.Localidad` tienen `[Required]` con
+    mensaje en español (octubre de 2026).
 
 14. **Los certificados no se reimprimen: se guarda el PDF emitido.** Si hay que corregir un
     CUIT o una razón social, se anula el certificado y se emite uno nuevo.
@@ -188,7 +189,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-109 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+113 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 

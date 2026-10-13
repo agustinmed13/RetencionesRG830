@@ -26,16 +26,22 @@ public class Cliente
     [Display(Name = "Razón social")]
     public string RazonSocial { get; set; } = string.Empty;
 
+    // Domicilio, localidad y firmante se imprimen en cada certificado de
+    // retención: un certificado sin ellos no sirve como comprobante.
+    [Required(ErrorMessage = "El domicilio es obligatorio.")]
     [StringLength(200)]
     public string Domicilio { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "La localidad es obligatoria.")]
     [StringLength(100)]
     public string Localidad { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "El nombre del firmante es obligatorio.")]
     [StringLength(200)]
     [Display(Name = "Nombre del firmante")]
     public string NombreFirmante { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "El cargo del firmante es obligatorio.")]
     [StringLength(100)]
     [Display(Name = "Cargo del firmante")]
     public string CargoFirmante { get; set; } = string.Empty;

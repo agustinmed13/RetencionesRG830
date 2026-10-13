@@ -30,16 +30,21 @@ public class ServicioProveedores
     ///   Operaciones[0].NumeroCertificado... creaba una operación sin pasar por el
     ///   motor de cálculo ni por la confirmación. Un documento fiscal que después
     ///   no se puede borrar.
+    ///
+    /// Cada texto se copia con "?? string.Empty": ASP.NET guarda null cuando el
+    /// campo llega vacío, la columna NOT NULL hacía fallar el guardado y el
+    /// controlador lo mostraba como CUIT repetido. Mismo caso que en
+    /// ServicioClientes; ver ServicioProveedoresTests.
     /// </summary>
     public async Task<Proveedor> CrearAsync(Proveedor datos)
     {
         var proveedor = new Proveedor
         {
             ClienteId = datos.ClienteId,
-            Cuit = datos.Cuit,
-            RazonSocial = datos.RazonSocial,
-            Domicilio = datos.Domicilio,
-            Localidad = datos.Localidad,
+            Cuit = datos.Cuit ?? string.Empty,
+            RazonSocial = datos.RazonSocial ?? string.Empty,
+            Domicilio = datos.Domicilio ?? string.Empty,
+            Localidad = datos.Localidad ?? string.Empty,
             InscriptoEnGanancias = datos.InscriptoEnGanancias,
             TipoPersona = datos.TipoPersona
         };
@@ -65,16 +70,18 @@ public class ServicioProveedores
     ///
     /// Antes se hacía _db.Proveedores.Update(datos), que guarda TODAS las
     /// propiedades del objeto recibido: esos dos campos incluidos.
+    ///
+    /// Los textos se copian con "?? string.Empty", por lo mismo que en el alta.
     /// </summary>
     public async Task<Proveedor?> ActualizarAsync(Proveedor datos)
     {
         var proveedor = await _db.Proveedores.FindAsync(datos.Id);
         if (proveedor is null) return null;
 
-        proveedor.Cuit = datos.Cuit;
-        proveedor.RazonSocial = datos.RazonSocial;
-        proveedor.Domicilio = datos.Domicilio;
-        proveedor.Localidad = datos.Localidad;
+        proveedor.Cuit = datos.Cuit ?? string.Empty;
+        proveedor.RazonSocial = datos.RazonSocial ?? string.Empty;
+        proveedor.Domicilio = datos.Domicilio ?? string.Empty;
+        proveedor.Localidad = datos.Localidad ?? string.Empty;
         proveedor.InscriptoEnGanancias = datos.InscriptoEnGanancias;
         proveedor.TipoPersona = datos.TipoPersona;
 

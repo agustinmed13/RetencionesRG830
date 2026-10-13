@@ -27,17 +27,24 @@ public class ServicioClientes
     /// - Las colecciones (Usuarios, Proveedores, Operaciones): Add() guarda también
     ///   los objetos relacionados, así que un POST con Usuarios[0].Email,
     ///   Usuarios[0].Rol... creaba un usuario con el rol que se eligiera.
+    ///
+    /// Cada texto se copia con "?? string.Empty". La propiedad es string, no
+    /// string?, pero ASP.NET guarda null cuando el campo llega vacío. Las columnas
+    /// son NOT NULL, así que ese null hacía fallar el guardado, y el controlador lo
+    /// mostraba como "Ya existe un cliente con ese CUIT". Que un campo sea
+    /// obligatorio lo decide su [Required]; acá sólo se evita que un null llegue a
+    /// la base. Ver ServicioClientesTests.
     /// </summary>
     public async Task<Cliente> CrearAsync(Cliente datos)
     {
         var cliente = new Cliente
         {
-            Cuit = datos.Cuit,
-            RazonSocial = datos.RazonSocial,
-            Domicilio = datos.Domicilio,
-            Localidad = datos.Localidad,
-            NombreFirmante = datos.NombreFirmante,
-            CargoFirmante = datos.CargoFirmante
+            Cuit = datos.Cuit ?? string.Empty,
+            RazonSocial = datos.RazonSocial ?? string.Empty,
+            Domicilio = datos.Domicilio ?? string.Empty,
+            Localidad = datos.Localidad ?? string.Empty,
+            NombreFirmante = datos.NombreFirmante ?? string.Empty,
+            CargoFirmante = datos.CargoFirmante ?? string.Empty
         };
 
         _db.Clientes.Add(cliente);
@@ -55,18 +62,20 @@ public class ServicioClientes
     /// entidad vale true por defecto, con _db.Clientes.Update(datos), que guarda
     /// TODAS las propiedades del objeto recibido, editar un cliente de baja lo
     /// reactivaba.
+    ///
+    /// Los textos se copian con "?? string.Empty", por lo mismo que en el alta.
     /// </summary>
     public async Task<Cliente?> ActualizarAsync(Cliente datos)
     {
         var cliente = await _db.Clientes.FindAsync(datos.Id);
         if (cliente is null) return null;
 
-        cliente.Cuit = datos.Cuit;
-        cliente.RazonSocial = datos.RazonSocial;
-        cliente.Domicilio = datos.Domicilio;
-        cliente.Localidad = datos.Localidad;
-        cliente.NombreFirmante = datos.NombreFirmante;
-        cliente.CargoFirmante = datos.CargoFirmante;
+        cliente.Cuit = datos.Cuit ?? string.Empty;
+        cliente.RazonSocial = datos.RazonSocial ?? string.Empty;
+        cliente.Domicilio = datos.Domicilio ?? string.Empty;
+        cliente.Localidad = datos.Localidad ?? string.Empty;
+        cliente.NombreFirmante = datos.NombreFirmante ?? string.Empty;
+        cliente.CargoFirmante = datos.CargoFirmante ?? string.Empty;
 
         await _db.SaveChangesAsync();
         return cliente;

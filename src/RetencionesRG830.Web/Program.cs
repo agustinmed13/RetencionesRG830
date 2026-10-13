@@ -27,6 +27,30 @@ builder.Services.AddControllersWithViews(opciones =>
     // podría hacer que un usuario con la sesión abierta registre o anule operaciones
     // sin saberlo (CSRF). El token lo agrega solo el tag helper de <form> en las vistas.
     opciones.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+
+    // Con <Nullable>enable</Nullable>, ASP.NET trata como obligatoria toda
+    // propiedad string que no sea string?, aunque no tenga [Required], y avisa en
+    // inglés ("The Domicilio field is required."). Eso hacía obligatorios campos
+    // sin que nadie lo decidiera, y sin asterisco en el formulario. Se apaga: un
+    // texto es obligatorio sólo si lo declara su [Required], con mensaje propio.
+    opciones.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+
+    // Red de seguridad: los mensajes que ASP.NET genera solo al leer el formulario,
+    // por ejemplo "The value '' is invalid." cuando un número o una fecha llegan
+    // vacíos. Lo normal es que cada pantalla dé su propio mensaje; éstos aparecen
+    // sólo si algún campo se escapa, y así al menos aparecen en español.
+    var mensajes = opciones.ModelBindingMessageProvider;
+    mensajes.SetValueMustNotBeNullAccessor(_ => "Completá este campo.");
+    mensajes.SetMissingBindRequiredValueAccessor(campo => $"Falta el dato {campo}.");
+    mensajes.SetMissingKeyOrValueAccessor(() => "Falta un dato.");
+    mensajes.SetMissingRequestBodyRequiredValueAccessor(() => "No llegaron los datos del formulario.");
+    mensajes.SetAttemptedValueIsInvalidAccessor((valor, campo) => $"\"{valor}\" no es un valor válido para {campo}.");
+    mensajes.SetNonPropertyAttemptedValueIsInvalidAccessor(valor => $"\"{valor}\" no es un valor válido.");
+    mensajes.SetUnknownValueIsInvalidAccessor(campo => $"El valor ingresado no es válido para {campo}.");
+    mensajes.SetNonPropertyUnknownValueIsInvalidAccessor(() => "El valor ingresado no es válido.");
+    mensajes.SetValueIsInvalidAccessor(valor => $"\"{valor}\" no es un valor válido.");
+    mensajes.SetValueMustBeANumberAccessor(campo => $"{campo} tiene que ser un número.");
+    mensajes.SetNonPropertyValueMustBeANumberAccessor(() => "Tiene que ser un número.");
 });
 
 // Conectamos el DbContext a una base de datos SQLite: un solo archivo

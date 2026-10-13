@@ -63,12 +63,12 @@
             </div>
             <div class="rejilla rejilla-2">
                 <div class="campo">
-                    <label for="Domicilio">Domicilio</label>
+                    <label for="Domicilio">Domicilio <span class="requerido">*</span></label>
                     <input asp-for="Domicilio" class="campo-control" />
                     <span asp-validation-for="Domicilio" class="campo-error"></span>
                 </div>
                 <div class="campo">
-                    <label for="Localidad">Localidad y provincia</label>
+                    <label for="Localidad">Localidad y provincia <span class="requerido">*</span></label>
                     <input asp-for="Localidad" class="campo-control" placeholder="Salta - SALTA" />
                     <span asp-validation-for="Localidad" class="campo-error"></span>
                 </div>
