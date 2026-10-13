@@ -7,6 +7,12 @@ namespace RetencionesRG830.Web.Models;
 public class OperacionViewModel
 {
     public int ClienteId { get; set; }
+
+    /// <summary>
+    /// Sólo se muestra. La completa siempre el servidor desde la base
+    /// (OperacionesController.ValidarClienteAsync): no viaja en el formulario, para
+    /// que un pedido alterado no pueda mostrar otro nombre en la confirmación.
+    /// </summary>
     public string ClienteRazonSocial { get; set; } = string.Empty;
 
     [Display(Name = "Proveedor")]
@@ -37,12 +43,19 @@ public class OperacionViewModel
     [DataType(DataType.Date)]
     public DateOnly FechaRetencion { get; set; }
 
+    // Mayores que 0, no "mayores o iguales": un importe en cero no es una operación.
+    // Es distinto de una operación que no alcanza el mínimo de retención, que sí se
+    // registra (regla 10). Que el campo no quede vacío lo controla DecimalModelBinder
+    // ("Ingresá un importe."): un decimal no tiene cómo representar "vacío", así que
+    // un [Required] acá no agregaría nada.
     [Display(Name = "Importe total del comprobante")]
-    [Range(0, double.MaxValue, ErrorMessage = "El importe no puede ser negativo.")]
+    [Range(0, double.MaxValue, MinimumIsExclusive = true,
+        ErrorMessage = "El importe total tiene que ser mayor que 0.")]
     public decimal ImporteComprobante { get; set; }
 
     [Display(Name = "Importe gravado")]
-    [Range(0, double.MaxValue, ErrorMessage = "El importe no puede ser negativo.")]
+    [Range(0, double.MaxValue, MinimumIsExclusive = true,
+        ErrorMessage = "El importe gravado tiene que ser mayor que 0.")]
     public decimal ImporteGravado { get; set; }
         // --- Datos que sólo se usan en la pantalla de confirmación ---
 

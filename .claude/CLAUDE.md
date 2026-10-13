@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 113 tests, deben dar todos verde
+dotnet test                                      # 130 tests, deben dar todos verde
 ```
 
 La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
@@ -98,9 +98,12 @@ código. Mientras una figure como "no implementada", el sistema la viola.
     atrasadas: el estudio da de baja a un cliente el día 1 de un mes, después de cerrar el
     mes anterior. **La validación va en el servidor**, en el registro de la operación, no
     sólo en la vista: mismo criterio que el filtro por `ClienteId` del rol Cliente.
-    *Hoy:* no implementada. La baja saca al cliente del selector de SICORE y el listado de
-    Clientes no ofrece "Nueva operación" en su fila, pero `OperacionesController` acepta
-    registrar una operación para un cliente de baja si se llega por la URL.
+    *Hoy:* implementada (octubre de 2026). `ServicioRegistroOperaciones.RegistrarAsync`
+    rechaza la operación de un cliente de baja (test
+    `No_se_puede_registrar_una_operacion_de_un_cliente_dado_de_baja`), y
+    `OperacionesController.ValidarClienteAsync` lo controla antes con un mensaje amable en
+    Create, Simular, Revisar, Corregir y Confirmar. Ni el listado de Clientes ni el de
+    Operaciones ofrecen "Nueva operación" para un cliente de baja.
 
 12. **Una factura pagada en cuotas genera varios certificados, y en ese caso se informa la
     orden de pago, no la factura.** La retención se practica al pagar, no al facturar. **No
@@ -162,6 +165,25 @@ es-AR, `87190.09` se interpreta como `8719009`: el punto se lee como separador d
   registrado al principio de la cadena de model binders, sólo la conecta con ASP.NET. Un
   campo vacío **no es cero**: en un `decimal?` llega como `null` (y la obligatoriedad la
   decide su `[Required]`); en un `decimal` es el error "Ingresá un importe.".
+- **Un importe con más de dos decimales es inválido** (octubre de 2026, decisión del
+  autor). La plata tiene dos decimales: un importe de factura con tres no existe. Antes
+  "1.234" se leía como 1,234, que era correcto según la regla del punto decimal pero casi
+  siempre equivocado según la intención del operador: en la Argentina la plata se escribe
+  con puntos, y "50.000" registraba una operación de **$ 50** sin ningún aviso. Ahora
+  "50.000", "1.234" y "1.2345" son inválidos, y el formulario muestra un solo mensaje que
+  enseña las dos reglas: "Escribí el importe sin separador de miles y con dos decimales
+  como máximo: por ejemplo 50000 o 50000,75.". Se controla con `decimal.Scale`, que
+  conserva los ceros finales: "1.500" tiene tres decimales y es inválido; "1.50" vale.
+- **`LectorImporte` es sólo para importes en pesos**, pero `DecimalModelBinder` lo aplica a
+  **todo** `decimal` de los formularios. Hoy son cuatro campos, todos de plata (los dos
+  importes de Nueva operación y los dos del Simulador). Un campo con más de dos decimales
+  legítimos, como una alícuota en la futura pantalla de carga de regímenes, necesita otra
+  lectura: con este binder sería rechazado.
+- **Los importes de Nueva operación son `type="text" inputmode="decimal"`**, no
+  `type="number"`: con `type="number"` el navegador descarta lo que no entiende
+  ("5.000.000") y manda el campo vacío, así que el mensaje que enseña nunca llegaba a
+  verse. Los del Simulador todavía son `type="number"`: ahí el servidor rechaza igual, pero
+  el operador ve lo que diga el navegador.
 - **En el archivo de SICORE**, `GeneradorArchivoSicore` formatea siempre con
   `CultureInfo.InvariantCulture` y después reemplaza el punto por coma. Es una de las dos
   causas de los rechazos de AFIP que hoy sufre el estudio (ver "Archivo de SICORE").
@@ -173,8 +195,15 @@ Qué cubre cada test, de verdad:
   es-AR, que tiene que dar idéntica.
 - **`LectorImporteTests`**: cómo se lee un importe escrito en un formulario. Fija el
   comportamiento medido en vivo antes de sacar la regla del binder (octubre de 2026): punto
-  y coma decimal, "1.234" es 1,234 y nunca 1234, qué textos son inválidos, y que vacío no es
-  cero. Cada caso corre bajo es-AR y bajo en-US.
+  y coma decimal, qué textos son inválidos, y que vacío no es cero. Un único cambio
+  deliberado desde esa medición: "1.234" pasó de leerse como 1,234 a ser inválido, por la
+  regla de los dos decimales. Nunca se lee como 1234. Cada caso corre bajo es-AR y bajo
+  en-US.
+- **Los golden tests no pasan por `LectorImporte`**: le entregan los importes directamente
+  al motor. Que sigan en verde después de un cambio en la lectura no prueba nada sobre la
+  lectura. Lo que sí se verificó (octubre de 2026): al motor le llegan importes sólo desde
+  el formulario (por `LectorImporte`), desde el seed (importes enteros) y desde los tests
+  (dos decimales como máximo).
 - **Lo que no tiene test automático:** el `DecimalModelBinder` en sí, es decir, cómo traduce
   el resultado de `LectorImporte` para ASP.NET (sobre todo, qué hace con un vacío según el
   campo sea `decimal` o `decimal?`). El proyecto de tests no referencia la Web. Se verificó
@@ -189,7 +218,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-113 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
+130 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
 practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
 archivo de SICORE reproducidas carácter por carácter.
 

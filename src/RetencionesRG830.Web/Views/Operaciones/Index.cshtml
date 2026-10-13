@@ -22,6 +22,7 @@
 
     int? clienteId = ViewBag.ClienteId;
     string? clienteRazonSocial = ViewBag.ClienteRazonSocial;
+    var clienteActivo = ViewBag.ClienteActivo is true;
     var todosLosClientes = clienteId is null;
 
     var operaciones = Model.ToList();
@@ -34,8 +35,8 @@
 <div class="cabecera-pagina">
     <h1>Operaciones</h1>
     @* "Nueva operación" necesita saber de qué cliente es: sólo aparece cuando el
-       listado está filtrado por uno. *@
-    @if (!todosLosClientes)
+       listado está filtrado por uno, y no si ese cliente está de baja (regla 11). *@
+    @if (!todosLosClientes && clienteActivo)
     {
         <a class="boton boton-primario" asp-action="Create" asp-route-clienteId="@clienteId">
             <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus" /></svg>Nueva operación
@@ -53,6 +54,16 @@ else
         Agente de retención: <b>@(clienteRazonSocial ?? "cliente inexistente")</b> ·
         <a class="enlace" asp-action="Index">Ver todos los clientes</a>
     </p>
+}
+
+@* Por qué se rechazó un pedido de Nueva operación (OperacionesController.Rechazar). *@
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="aviso aviso-error" role="alert">@mensaje</div>
+}
+else if (!todosLosClientes && clienteRazonSocial is not null && !clienteActivo)
+{
+    <div class="aviso">Este cliente está dado de baja: se pueden consultar sus operaciones, pero no cargar nuevas.</div>
 }
 
 <div class="tarjeta">

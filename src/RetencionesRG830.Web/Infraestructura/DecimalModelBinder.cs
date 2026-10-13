@@ -48,9 +48,16 @@ public class DecimalModelBinder : IModelBinder
                 bindingContext.Result = ModelBindingResult.Success(lectura.Valor);
                 break;
 
+            // El mensaje enseña cómo se escribe, no sólo rechaza. Los casos típicos son
+            // "5.000.000" y "50.000": así se escribe la plata en la Argentina, pero el
+            // punto no se acepta como separador de miles, y un importe no puede tener
+            // más de dos decimales (ver LectorImporte). Un solo mensaje cubre las dos
+            // reglas, porque el operador no sabe cuál de las dos rompió.
             default:
                 bindingContext.ModelState.TryAddModelError(
-                    bindingContext.ModelName, "Ingresá un importe válido.");
+                    bindingContext.ModelName,
+                    "Escribí el importe sin separador de miles y con dos decimales como máximo: "
+                    + "por ejemplo 50000 o 50000,75.");
                 break;
         }
 

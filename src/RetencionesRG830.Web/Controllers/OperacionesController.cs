@@ -42,8 +42,13 @@ public class OperacionesController : Controller
 
         // El nombre del cliente filtrado se busca aparte y no se toma de la primera
         // operación: un cliente sin operaciones todavía también tiene que mostrarlo.
+        // Si está de baja, el listado no ofrece "Nueva operación" (regla 11).
         if (clienteId is not null)
-            ViewBag.ClienteRazonSocial = (await _db.Clientes.FindAsync(clienteId))?.RazonSocial;
+        {
+            var cliente = await _db.Clientes.FindAsync(clienteId);
+            ViewBag.ClienteRazonSocial = cliente?.RazonSocial;
+            ViewBag.ClienteActivo = cliente?.Activo ?? false;
+        }
 
         var operaciones = await query
             .OrderByDescending(o => o.FechaRetencion)
@@ -55,18 +60,20 @@ public class OperacionesController : Controller
 
     public async Task<IActionResult> Create(int clienteId)
     {
-        var cliente = await _db.Clientes.FindAsync(clienteId);
-        if (cliente is null) return NotFound();
-
         var hoy = DateOnly.FromDateTime(DateTime.Today);
 
         var modelo = new OperacionViewModel
         {
-            ClienteId = cliente.Id,
-            ClienteRazonSocial = cliente.RazonSocial,
+            ClienteId = clienteId,
             FechaComprobante = hoy,
             FechaRetencion = hoy
         };
+
+        // Un cliente de baja no admite operaciones (regla 11). El listado ya no
+        // ofrece el botón, pero la URL se puede escribir a mano.
+        if (await ValidarClienteAsync(modelo) is string rechazo)
+            return Rechazar(rechazo, clienteId);
+
         await PrepararFormularioAsync(modelo);
 
         return View(modelo);
@@ -87,6 +94,12 @@ public class OperacionesController : Controller
     [HttpPost]
     public async Task<IActionResult> Simular(OperacionViewModel modelo)
     {
+        // Sin un cliente válido no hay panel: el pedido está alterado o el cliente se
+        // dio de baja mientras se cargaba. La pantalla muestra que no pudo calcular, y
+        // "Revisar cálculo" explica el motivo.
+        if (await ValidarClienteAsync(modelo) is string rechazo)
+            return BadRequest(rechazo);
+
         // La ayuda del régimen y el aviso de comprobante repetido se actualizan con
         // el panel: viajan dentro de la misma respuesta.
         await CompletarAvisosAsync(modelo);
@@ -126,6 +139,9 @@ public class OperacionesController : Controller
     [HttpPost]
     public async Task<IActionResult> Revisar(OperacionViewModel modelo)
     {
+        if (await ValidarClienteAsync(modelo) is string rechazo)
+            return Rechazar(rechazo, modelo.ClienteId);
+
         if (!await ValidarAsync(modelo))
         {
             await PrepararFormularioAsync(modelo);
@@ -158,6 +174,9 @@ public class OperacionesController : Controller
     [HttpPost]
     public async Task<IActionResult> Corregir(OperacionViewModel modelo)
     {
+        if (await ValidarClienteAsync(modelo) is string rechazo)
+            return Rechazar(rechazo, modelo.ClienteId);
+
         await PrepararFormularioAsync(modelo);
         return View("Create", modelo);
     }
@@ -169,6 +188,12 @@ public class OperacionesController : Controller
     [HttpPost]
     public async Task<IActionResult> Confirmar(OperacionViewModel modelo)
     {
+        // Se vuelve a controlar al confirmar: entre la revisión y la confirmación el
+        // cliente se puede haber dado de baja. ServicioRegistroOperaciones lo controla
+        // otra vez al registrar (regla 11).
+        if (await ValidarClienteAsync(modelo) is string rechazo)
+            return Rechazar(rechazo, modelo.ClienteId);
+
         if (!await ValidarAsync(modelo))
         {
             await PrepararFormularioAsync(modelo);
@@ -236,8 +261,13 @@ public class OperacionesController : Controller
             ReemplazarError(nameof(modelo.FechaRetencion),
                 "Indicá la fecha de la retención: define el mes del acumulado y con qué valores se calcula.");
 
+        // Proveedor, régimen, tipo, punto de venta y número usan ReemplazarError por lo
+        // mismo que las fechas: con el campo vacío o con texto que no es un número,
+        // ASP.NET deja su propio error ("Completá este campo.") y el campo queda en 0.
+        // Ese mensaje genérico tapaba al de acá, que dice qué falta. "<= 0" cubre los
+        // tres casos (vacío, inválido y cero o negativo) con un solo mensaje.
         if (modelo.ProveedorId <= 0)
-            ModelState.AddModelError(nameof(modelo.ProveedorId), "Tenés que elegir un proveedor.");
+            ReemplazarError(nameof(modelo.ProveedorId), "Tenés que elegir un proveedor.");
         // Mismo control que el cálculo en vivo. El formulario sólo ofrece proveedores
         // del cliente, pero los datos se pueden alterar antes de enviarlos; y una
         // operación con el proveedor de otro cliente ensuciaría el acumulado de las
@@ -246,12 +276,26 @@ public class OperacionesController : Controller
             ModelState.AddModelError(nameof(modelo.ProveedorId), "El proveedor elegido no pertenece a este cliente.");
 
         if (modelo.CodigoRegimen <= 0)
-            ModelState.AddModelError(nameof(modelo.CodigoRegimen), "Tenés que elegir un régimen.");
+            ReemplazarError(nameof(modelo.CodigoRegimen), "Tenés que elegir un régimen.");
         // Sin una versión vigente a la fecha de retención no hay valores con qué
         // calcular (regla 9). Con la fecha vacía el error ya lo da ese campo.
         else if (modelo.FechaRetencion != default
                  && await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion) is null)
             ModelState.AddModelError(nameof(modelo.CodigoRegimen), SinVersionVigente(modelo));
+
+        // El desplegable sólo ofrece los tipos conocidos, pero el valor se puede
+        // alterar: un código que no existe saldría tal cual en el archivo de SICORE.
+        // Acá "<= 0" no alcanza: el modelo arranca en 1 (Factura), y si el valor no se
+        // puede leer se queda en 1 con el error de ASP.NET. Por eso se mira también si
+        // el campo ya trae un error.
+        if (TieneError(nameof(modelo.TipoComprobante))
+            || !FormatoComprobante.Tipos.Any(t => t.Codigo == modelo.TipoComprobante))
+            ReemplazarError(nameof(modelo.TipoComprobante), "Elegí el tipo de comprobante.");
+
+        if (modelo.PuntoVenta <= 0)
+            ReemplazarError(nameof(modelo.PuntoVenta), "Indicá el punto de venta: un número mayor que 0.");
+        if (modelo.NumeroComprobante <= 0)
+            ReemplazarError(nameof(modelo.NumeroComprobante), "Indicá el número del comprobante: un número mayor que 0.");
 
         if (modelo.ImporteGravado > modelo.ImporteComprobante)
             ModelState.AddModelError(nameof(modelo.ImporteGravado),
@@ -259,6 +303,52 @@ public class OperacionesController : Controller
 
         return ModelState.IsValid;
     }
+
+    /// <summary>
+    /// Controla el cliente de la operación antes que cualquier otro dato. Devuelve
+    /// por qué no se puede atender el pedido, o null si se puede; en ese caso deja
+    /// en el modelo la razón social tomada de la base, no la que llegue del
+    /// formulario.
+    ///
+    /// No es un error de carga que el operador corrija en el formulario: el ClienteId
+    /// viaja oculto, así que si falta o no existe el pedido está alterado, y sin
+    /// cliente no hay a quién mostrarle proveedores. Por eso se rechaza el pedido
+    /// entero (ver Rechazar), en lugar de devolver un formulario sin proveedores y
+    /// sin explicación.
+    /// </summary>
+    private async Task<string?> ValidarClienteAsync(OperacionViewModel modelo)
+    {
+        if (modelo.ClienteId <= 0)
+            return "El pedido llegó sin el cliente de la operación, así que no se registró nada. "
+                 + "Volvé a cargarla desde el listado de operaciones del cliente.";
+
+        var cliente = await _db.Clientes.FindAsync(modelo.ClienteId);
+        if (cliente is null)
+            return "El cliente indicado no existe, así que no se registró nada.";
+
+        // Regla 11: no existen operaciones atrasadas de un cliente dado de baja.
+        if (!cliente.Activo)
+            return $"{cliente.RazonSocial} está dado de baja: no se le registran operaciones. "
+                 + "El estudio da de baja a un cliente después de cerrar su último mes, así que no "
+                 + "quedan operaciones atrasadas por cargar. Si se dio de baja por error, "
+                 + "reactivalo desde Clientes.";
+
+        modelo.ClienteRazonSocial = cliente.RazonSocial;
+        return null;
+    }
+
+    /// <summary>
+    /// Rechaza el pedido entero: vuelve al listado de operaciones (del cliente, si se
+    /// sabe cuál) y muestra el motivo arriba.
+    /// </summary>
+    private IActionResult Rechazar(string motivo, int clienteId)
+    {
+        TempData["Mensaje"] = motivo;
+        return RedirectToAction(nameof(Index), new { clienteId = clienteId > 0 ? clienteId : (int?)null });
+    }
+
+    private bool TieneError(string campo) =>
+        ModelState.TryGetValue(campo, out var entrada) && entrada.Errors.Count > 0;
 
     /// <summary>Saca los errores que ya tenga un campo y deja sólo el mensaje dado.</summary>
     private void ReemplazarError(string campo, string mensaje)

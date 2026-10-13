@@ -36,8 +36,8 @@
        data-simular-url: adonde nueva-operacion.js pide el panel de cálculo. *@
     <form asp-action="Revisar" method="post" class="tarjeta" id="form-operacion"
           data-enter-siguiente data-simular-url="@Url.Action("Simular")">
+        @* La razón social del cliente no viaja: la completa el servidor desde la base. *@
         <input type="hidden" asp-for="ClienteId" />
-        <input type="hidden" asp-for="ClienteRazonSocial" />
 
         <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
 
@@ -92,6 +92,7 @@
                             <option value="@codigo">@nombre</option>
                         }
                     </select>
+                    <span asp-validation-for="TipoComprobante" class="campo-error"></span>
                 </div>
                 <div class="campo">
                     <label for="PuntoVenta">Pto. venta <span class="requerido">*</span></label>
@@ -123,15 +124,21 @@
             <h2 class="tarjeta-seccion-titulo">
                 <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Importes
             </h2>
+            @* Campos de texto y no type="number": con type="number" el navegador descarta
+               lo que no entiende ("5.000.000") y manda el campo vacío, así que el
+               servidor no podía explicar cómo se escribe. Lo interpreta LectorImporte,
+               que acepta coma o punto decimal y da lo mismo en cualquier computadora.
+               inputmode="decimal" muestra el teclado numérico en el celular. *@
             <div class="rejilla rejilla-2">
                 <div class="campo">
                     <label for="ImporteComprobante">Importe total <span class="requerido">*</span></label>
-                    <input asp-for="ImporteComprobante" type="number" step="0.01" min="0" class="campo-control importe" />
+                    <input asp-for="ImporteComprobante" type="text" inputmode="decimal" autocomplete="off" class="campo-control importe" />
+                    <div class="campo-ayuda">Sin separador de miles, hasta dos decimales: 50000 o 50000,75.</div>
                     <span asp-validation-for="ImporteComprobante" class="campo-error"></span>
                 </div>
                 <div class="campo">
                     <label for="ImporteGravado">Importe gravado <span class="requerido">*</span></label>
-                    <input asp-for="ImporteGravado" type="number" step="0.01" min="0" class="campo-control importe" />
+                    <input asp-for="ImporteGravado" type="text" inputmode="decimal" autocomplete="off" class="campo-control importe" />
                     <div class="campo-ayuda">No puede superar el importe total.</div>
                     <span asp-validation-for="ImporteGravado" class="campo-error"></span>
                 </div>

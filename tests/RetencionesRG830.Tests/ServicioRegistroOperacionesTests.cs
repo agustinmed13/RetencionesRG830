@@ -191,6 +191,27 @@ public class ServicioRegistroOperacionesTests : IDisposable
     }
 
     /// <summary>
+    /// Regla 11 (consulta al contador, octubre de 2026): no existen operaciones
+    /// atrasadas de un cliente dado de baja, porque el estudio lo da de baja el día 1
+    /// de un mes, después de cerrar el anterior. La pantalla ya no ofrece cargarlas,
+    /// pero un enlace oculto no impide escribir la URL: el servicio lo rechaza y no
+    /// queda nada guardado.
+    /// </summary>
+    [Fact]
+    public async Task No_se_puede_registrar_una_operacion_de_un_cliente_dado_de_baja()
+    {
+        var cliente = await _db.Clientes.FindAsync(_clienteId);
+        cliente!.Activo = false;
+        await _db.SaveChangesAsync();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(
+            NuevaOperacion(500000m, new DateOnly(2026, 9, 10), 1)));
+
+        Assert.Contains("dado de baja", error.Message);
+        Assert.Equal(0, await _db.Operaciones.CountAsync());
+    }
+
+    /// <summary>
     /// El mismo comprobante del mismo proveedor puede tener dos retenciones
     /// legítimas (una factura pagada en dos cuotas): el sistema lo detecta para
     /// avisar, pero no impide registrar.

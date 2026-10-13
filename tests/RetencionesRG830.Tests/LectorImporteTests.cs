@@ -13,6 +13,10 @@ namespace RetencionesRG830.Tests;
 /// importe gravado a la pantalla de revisión (11/10/2026). Si uno de estos tests
 /// se rompe, cambió cómo se lee un importe.
 ///
+/// Un cambio deliberado desde entonces (octubre de 2026): un importe con más de dos
+/// decimales es inválido. "1.234" y "1,234" se leían como 1,234; ahora se rechazan.
+/// Ver el porqué en LectorImporte.
+///
 /// Cada caso corre dos veces, con la computadora configurada en es-AR y en en-US:
 /// el resultado no puede depender de la configuración regional.
 /// </summary>
@@ -24,8 +28,9 @@ public class LectorImporteTests
     {
         ("87190.09", "87190.09"),   // como lo manda <input type="number">: con punto
         ("87190,09", "87190.09"),   // como lo escribe una persona en es-AR: con coma
-        ("1.234", "1.234"),         // el punto es decimal, NUNCA miles: no es 1234
-        ("1,234", "1.234"),         // la coma también es decimal
+        ("50000,75", "50000.75"),   // el ejemplo del mensaje de error
+        ("1.5", "1.5"),             // un decimal
+        ("1.50", "1.50"),           // dos decimales, aunque el segundo sea cero
         ("+5", "5"),
         ("-5", "-5"),               // se lee; lo rechaza después [Range] del campo
         (".5", "0.5"),
@@ -39,7 +44,17 @@ public class LectorImporteTests
         "1.234,56",    // miles y decimales mezclados: sin separador de miles, es inválido
         "1,234.56",
         "5.000.000",
-        " 12",         // espacios: el navegador no los manda en un campo numérico
+        // Más de dos decimales: la plata tiene dos. Hasta octubre de 2026 "1.234" se
+        // leía como 1,234; casi siempre el operador quiso decir mil doscientos
+        // treinta y cuatro.
+        "1.234",
+        "1,234",
+        "50.000",      // el caso que motivó la regla: cincuenta mil, no cincuenta
+        "50,000",
+        "1.2345",
+        "0.001",
+        "1.500",       // tres decimales aunque terminen en cero
+        " 12",        // espacios: el navegador no los manda en un campo numérico
         "12 ",
         "1e3",
         "abc",

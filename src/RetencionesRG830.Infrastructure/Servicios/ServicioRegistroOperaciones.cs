@@ -92,9 +92,21 @@ public class ServicioRegistroOperaciones
     /// Confirma la operación: calcula, le asigna el número de certificado y
     /// la guarda. Reutiliza SimularAsync para que el número que se le mostró
     /// al usuario y el que se guarda salgan del mismo cálculo.
+    ///
+    /// Antes de nada controla que el cliente esté activo (regla 11, consulta al
+    /// contador de octubre de 2026): no existen operaciones atrasadas de un cliente
+    /// dado de baja, porque el estudio lo da de baja el día 1 de un mes, después de
+    /// cerrar el anterior. La pantalla lo controla antes con un mensaje amable; acá
+    /// se vuelve a controlar porque es por donde pasa todo registro.
     /// </summary>
     public async Task<Operacion> RegistrarAsync(Operacion operacion)
     {
+        var cliente = await _db.Clientes.FindAsync(operacion.ClienteId)
+            ?? throw new InvalidOperationException("El cliente indicado no existe.");
+        if (!cliente.Activo)
+            throw new InvalidOperationException(
+                $"El cliente {cliente.RazonSocial} está dado de baja: no se le pueden registrar operaciones.");
+
         var resultado = await SimularAsync(operacion);
 
         operacion.MontoRetenido = resultado.RetencionAPracticar;
