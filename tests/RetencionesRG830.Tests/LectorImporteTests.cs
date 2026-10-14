@@ -29,6 +29,16 @@ public class LectorImporteTests
         ("87190.09", "87190.09"),   // como lo manda <input type="number">: con punto
         ("87190,09", "87190.09"),   // como lo escribe una persona en es-AR: con coma
         ("50000,75", "50000.75"),   // el ejemplo del mensaje de error
+        // Importes de seis, siete y ocho cifras enteras, con y sin decimales. En el
+        // archivo real del estudio hay un comprobante de $ 15.769.531,50.
+        ("500000,75", "500000.75"),
+        ("999999,99", "999999.99"),
+        ("1000000,99", "1000000.99"),
+        ("1000000,00", "1000000.00"),
+        ("1000000", "1000000"),
+        ("15769531,50", "15769531.50"),
+        ("15769531.50", "15769531.50"),
+        ("15769531", "15769531"),
         ("1.5", "1.5"),             // un decimal
         ("1.50", "1.50"),           // dos decimales, aunque el segundo sea cero
         ("+5", "5"),
@@ -37,6 +47,18 @@ public class LectorImporteTests
         (",5", "0.5"),
         ("1.", "1"),
         ("0", "0"),                 // cero es un número, no un vacío
+        // Espacios en los extremos: se sacan antes de leer. Hasta octubre de 2026 " 12"
+        // y "12 " eran inválidos, por una suposición que dejó de ser cierta (ver
+        // LectorImporte). Son los que trae un importe pegado desde Excel o desde un
+        // mensaje: espacio común, tabulación y espacio duro (NBSP, U+00A0).
+        (" 12", "12"),
+        ("12 ", "12"),
+        ("1000000,99 ", "1000000.99"),
+        ("1000000,99\t", "1000000.99"),
+        ("\t1000000,99", "1000000.99"),
+        ("1000000,99 ", "1000000.99"),
+        (" 1000000,99", "1000000.99"),
+        ("  15769531,50 \t", "15769531.50"),
     };
 
     private static readonly string[] Invalidos =
@@ -54,8 +76,12 @@ public class LectorImporteTests
         "1.2345",
         "0.001",
         "1.500",       // tres decimales aunque terminen en cero
-        " 12",        // espacios: el navegador no los manda en un campo numérico
-        "12 ",
+        // Un espacio EN EL MEDIO sigue siendo inválido: puede ser un separador de miles
+        // ("1 000 000"), y la regla es no adivinar separadores de miles.
+        "1 000 000",
+        "1 000 000",
+        "1000000, 99",
+        "$ 1000000,99", // el símbolo de pesos tampoco: el campo es sólo el número
         "1e3",
         "abc",
     };

@@ -35,8 +35,9 @@ namespace RetencionesRG830.Application.Servicios;
 public static class LectorImporte
 {
     // Sin AllowThousands a propósito: así el punto nunca se puede confundir con un
-    // separador de miles. Sin AllowLeadingWhite ni AllowTrailingWhite: " 12" es
-    // inválido (el navegador no manda espacios en un campo numérico).
+    // separador de miles. Los espacios de los extremos se sacan antes (ver Interpretar);
+    // uno en el medio ("1 000 000") queda inválido, porque podría ser un separador de
+    // miles, y la regla es no adivinarlos.
     private const NumberStyles Estilos = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign;
 
     private static readonly CultureInfo EsAr = new("es-AR");
@@ -53,8 +54,30 @@ public static class LectorImporte
         if (string.IsNullOrWhiteSpace(texto))
             return new LecturaImporte(ResultadoLectura.Vacio, 0m);
 
-        if (decimal.TryParse(texto, Estilos, CultureInfo.InvariantCulture, out var numero)
-            || decimal.TryParse(texto, Estilos, EsAr, out numero))
+        // Los espacios de los extremos se sacan antes de leer (octubre de 2026).
+        //
+        // Antes " 12" era inválido, con este motivo: "el navegador no manda espacios
+        // en un campo numérico". Era cierto mientras los importes eran
+        // <input type="number">, porque el navegador limpia ese valor antes de
+        // enviarlo. Dejó de serlo cuando los importes de Nueva operación pasaron a
+        // type="text" (para que llegara el mensaje que enseña cómo se escribe): un
+        // campo de texto manda lo que tenga, y "1000000,99" copiado con un carácter
+        // invisible al final se rechazaba con un mensaje sobre separadores y
+        // decimales que no tenía nada que ver.
+        //
+        // El motivo de fondo: el operador real va a pegar importes desde Excel o desde
+        // un mensaje, y de ahí vienen espacios, tabulaciones y espacios duros (NBSP,
+        // U+00A0). No son parte del número ni lo vuelven ambiguo: sacarlos no adivina
+        // nada.
+        //
+        // Se usa Trim() y no NumberStyles.AllowLeadingWhite/AllowTrailingWhite porque
+        // esos sólo reconocen el espacio común, la tabulación y los saltos de línea, NO
+        // el espacio duro, que es justamente el que trae Excel. Trim() saca cualquier
+        // carácter que .NET considere espacio (char.IsWhiteSpace), NBSP incluido.
+        var limpio = texto.Trim();
+
+        if (decimal.TryParse(limpio, Estilos, CultureInfo.InvariantCulture, out var numero)
+            || decimal.TryParse(limpio, Estilos, EsAr, out numero))
         {
             // Scale es la cantidad de decimales tal como se escribieron: un decimal
             // de .NET conserva los ceros finales, así que "50.000" tiene Scale 3 y
