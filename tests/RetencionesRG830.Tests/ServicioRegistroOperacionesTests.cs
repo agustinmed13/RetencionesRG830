@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -10,13 +9,21 @@ namespace RetencionesRG830.Tests;
 /// <summary>
 /// Prueba el acumulado mensual automático, que es el corazón del hito 3.
 ///
-/// Usa una base de datos SQLite que vive sólo en memoria: se crea vacía al
-/// empezar cada test y desaparece al terminar. Así los tests son rápidos,
-/// no dependen de la base real, y no se pisan entre sí.
+/// La base la arma BaseDePrueba: se crea vacía al empezar cada test y desaparece
+/// al terminar. Por defecto es SQLite en memoria; con la variable
+/// SIGERE_PRUEBAS_SQLSERVER, SQL Server con la migración real.
+///
+/// OJO: todos los tests de esta clase usan UN SOLO contexto (_db). Cuando la
+/// segunda operación lee lo ya retenido en el mes, EF Core le devuelve la entidad
+/// que ya tiene en memoria, con todos sus decimales, sin mirar lo que quedó en la
+/// base. Por eso estos tests NO detectan que la base recorte decimales, ni siquiera
+/// contra SQL Server. Eso lo prueba
+/// PersistenciaTests.Gomez_con_un_contexto_nuevo_por_operacion, como en producción,
+/// donde cada pedido tiene su propio contexto.
 /// </summary>
 public class ServicioRegistroOperacionesTests : IDisposable
 {
-    private readonly SqliteConnection _conexion;
+    private readonly BaseDePrueba _base = new();
     private readonly RetencionesRG830DbContext _db;
     private readonly ServicioRegistroOperaciones _servicio;
 
@@ -26,15 +33,7 @@ public class ServicioRegistroOperacionesTests : IDisposable
 
     public ServicioRegistroOperacionesTests()
     {
-        _conexion = new SqliteConnection("DataSource=:memory:");
-        _conexion.Open();
-
-        var opciones = new DbContextOptionsBuilder<RetencionesRG830DbContext>()
-            .UseSqlite(_conexion)
-            .Options;
-
-        _db = new RetencionesRG830DbContext(opciones);
-        _db.Database.EnsureCreated();
+        _db = _base.NuevoContexto();
 
         Sembrar();
 
@@ -44,7 +43,7 @@ public class ServicioRegistroOperacionesTests : IDisposable
     public void Dispose()
     {
         _db.Dispose();
-        _conexion.Dispose();
+        _base.Dispose();
     }
 
     private void Sembrar()

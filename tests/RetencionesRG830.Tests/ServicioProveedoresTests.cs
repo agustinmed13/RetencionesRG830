@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -15,11 +14,12 @@ namespace RetencionesRG830.Tests;
 /// el formulario mandaba otro ClienteId y el proveedor se mudaba solo. Por eso
 /// el cliente original de estos tests está de baja.
 ///
-/// Base SQLite en memoria, igual que ServicioRegistroOperacionesTests.
+/// La base la arma BaseDePrueba: SQLite en memoria, o SQL Server si está definida
+/// la variable SIGERE_PRUEBAS_SQLSERVER.
 /// </summary>
 public class ServicioProveedoresTests : IDisposable
 {
-    private readonly SqliteConnection _conexion;
+    private readonly BaseDePrueba _base = new();
     private readonly DbContextOptions<RetencionesRG830DbContext> _opciones;
 
     private int _clienteOriginalId;
@@ -29,21 +29,15 @@ public class ServicioProveedoresTests : IDisposable
 
     public ServicioProveedoresTests()
     {
-        _conexion = new SqliteConnection("DataSource=:memory:");
-        _conexion.Open();
-
-        _opciones = new DbContextOptionsBuilder<RetencionesRG830DbContext>()
-            .UseSqlite(_conexion)
-            .Options;
+        _opciones = _base.Opciones;
 
         using var db = new RetencionesRG830DbContext(_opciones);
-        db.Database.EnsureCreated();
         Sembrar(db);
     }
 
     public void Dispose()
     {
-        _conexion.Dispose();
+        _base.Dispose();
     }
 
     private void Sembrar(RetencionesRG830DbContext db)

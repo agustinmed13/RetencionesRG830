@@ -6,11 +6,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Entity Framework Core con proveedor SQLite: una base de datos que es
-         un solo archivo (retenciones.db), sin necesidad de instalar ni
-         configurar un servidor de base de datos aparte. Ideal para
-         desarrollar y para la defensa del proyecto. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
+    <!-- Entity Framework Core con proveedor SQL Server (octubre de 2026; antes
+         SQLite). En desarrollo: SQL Server Express o LocalDB, según la máquina.
+         La aplicación ya no puede usar SQLite, a propósito: así ninguna máquina
+         se queda con el motor viejo por accidente. Los tests sí lo usan por
+         defecto (ver su .csproj). -->
+
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.*" />
     <PackageReference Include="QuestPDF" Version="2026.2.*" />
   </ItemGroup>
 

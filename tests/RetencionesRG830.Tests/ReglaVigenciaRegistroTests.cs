@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -22,7 +21,8 @@ namespace RetencionesRG830.Tests;
 /// </summary>
 public class ReglaVigenciaRegistroTests : IDisposable
 {
-    private readonly SqliteConnection _conexion;
+    // SQLite en memoria, o SQL Server si está definida SIGERE_PRUEBAS_SQLSERVER.
+    private readonly BaseDePrueba _base = new();
     private readonly DbContextOptions<RetencionesRG830DbContext> _opciones;
 
     private int _clienteId;
@@ -34,16 +34,13 @@ public class ReglaVigenciaRegistroTests : IDisposable
 
     public ReglaVigenciaRegistroTests()
     {
-        _conexion = new SqliteConnection("DataSource=:memory:");
-        _conexion.Open();
-        _opciones = new DbContextOptionsBuilder<RetencionesRG830DbContext>().UseSqlite(_conexion).Options;
+        _opciones = _base.Opciones;
 
         using var db = new RetencionesRG830DbContext(_opciones);
-        db.Database.EnsureCreated();
         Sembrar(db);
     }
 
-    public void Dispose() => _conexion.Dispose();
+    public void Dispose() => _base.Dispose();
 
     private static Regimen Regimen78(decimal tasaInscripto, decimal noSujeto, DateOnly desde) => new()
     {

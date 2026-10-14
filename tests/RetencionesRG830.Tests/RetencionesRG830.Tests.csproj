@@ -20,6 +20,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!-- Los tests que usan base corren por defecto contra SQLite en memoria (rápido, y anda
+         en cualquier máquina). La aplicación ya no usa SQLite: ver BaseDePrueba. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
   </ItemGroup>
 
   <ItemGroup>

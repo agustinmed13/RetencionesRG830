@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -15,26 +14,21 @@ namespace RetencionesRG830.Tests;
 /// _db.Clientes.Update() lo guardaba, así que editar un cliente de baja lo
 /// reactivaba. Por eso el cliente de estos tests está de baja.
 ///
-/// Base SQLite en memoria, igual que ServicioProveedoresTests.
+/// La base la arma BaseDePrueba: SQLite en memoria, o SQL Server si está definida
+/// la variable SIGERE_PRUEBAS_SQLSERVER.
 /// </summary>
 public class ServicioClientesTests : IDisposable
 {
-    private readonly SqliteConnection _conexion;
+    private readonly BaseDePrueba _base = new();
     private readonly DbContextOptions<RetencionesRG830DbContext> _opciones;
 
     private int _clienteId;
 
     public ServicioClientesTests()
     {
-        _conexion = new SqliteConnection("DataSource=:memory:");
-        _conexion.Open();
-
-        _opciones = new DbContextOptionsBuilder<RetencionesRG830DbContext>()
-            .UseSqlite(_conexion)
-            .Options;
+        _opciones = _base.Opciones;
 
         using var db = new RetencionesRG830DbContext(_opciones);
-        db.Database.EnsureCreated();
 
         var cliente = new Cliente
         {
@@ -53,7 +47,7 @@ public class ServicioClientesTests : IDisposable
 
     public void Dispose()
     {
-        _conexion.Dispose();
+        _base.Dispose();
     }
 
     /// <summary>

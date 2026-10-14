@@ -2,19 +2,18 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using RetencionesRG830.Infrastructure.Servicios;
 using RetencionesRG830.Application.Servicios;
-using RetencionesRG830.Infrastructure.Persistencia;
 
 namespace RetencionesRG830.Web.Controllers;
 
 public class CuentaController : Controller
 {
-    private readonly RetencionesRG830DbContext _context;
+    private readonly ServicioUsuarios _usuarios;
 
-    public CuentaController(RetencionesRG830DbContext context)
+    public CuentaController(ServicioUsuarios usuarios)
     {
-        _context = context;
+        _usuarios = usuarios;
     }
 
     [HttpGet]
@@ -41,7 +40,9 @@ public class CuentaController : Controller
             return View();
         }
 
-        var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Email == email);
+        // Sin distinguir mayúsculas ni espacios, en cualquier motor: el correo se
+        // normaliza al guardarlo y al buscarlo (ver ServicioUsuariosTests).
+        var usuario = await _usuarios.BuscarPorEmailAsync(email);
 
         if (usuario == null || !PasswordHasher.Verificar(password, usuario.PasswordHash))
         {

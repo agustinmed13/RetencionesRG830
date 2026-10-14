@@ -18,7 +18,27 @@ public class Usuario
 {
     public int Id { get; set; }
 
-    public string Email { get; set; } = string.Empty;
+    private string _email = string.Empty;
+
+    /// <summary>
+    /// Se guarda siempre en minúsculas y sin espacios alrededor, y se busca igual
+    /// (ServicioUsuarios). Así el inicio de sesión no distingue mayúsculas en
+    /// ningún motor de base de datos: no depende de la intercalación del servidor,
+    /// que puede cambiar al desplegar en otro.
+    ///
+    /// La regla está acá, en el setter, para que la cumpla cualquier forma de crear
+    /// un usuario. Al leer de la base, EF Core carga el campo _email directamente,
+    /// sin pasar por el setter: lo guardado ya está normalizado.
+    /// </summary>
+    public string Email
+    {
+        get => _email;
+        set => _email = NormalizarEmail(value);
+    }
+
+    /// <summary>Un correo tal como se guarda y se compara: "Ana@X.com " → "ana@x.com".</summary>
+    public static string NormalizarEmail(string? email) =>
+        (email ?? string.Empty).Trim().ToLowerInvariant();
     public string PasswordHash { get; set; } = string.Empty;
 
     public RolUsuario Rol { get; set; }

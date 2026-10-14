@@ -17,11 +17,25 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 138 tests, deben dar todos verde
+dotnet test                                      # 188 tests: 185 verdes y 3 omitidos (ver Tests)
 ```
 
-La base SQLite se crea sola en el primer arranque (`DbInitializer`), con los regímenes y
-datos de prueba cargados. No está versionada: cada máquina tiene la suya.
+La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
+arranque (`Migrate` + `DbInitializer`), con los regímenes y los datos de prueba cargados.
+
+**Una vez por máquina**, la cadena de conexión, que NO está en el repositorio (es público, y
+cada máquina tiene su servidor). Se guarda en User Secrets, fuera del repositorio:
+
+```bash
+# PC (SQL Server 2025 Express, instancia SQLEXPRESS):
+dotnet user-secrets set ConnectionStrings:DefaultConnection "Server=.\SQLEXPRESS;Database=SIGERE;Trusted_Connection=True;TrustServerCertificate=True" --project src/RetencionesRG830.Web
+# Notebook (SQL Server Express LocalDB):
+dotnet user-secrets set ConnectionStrings:DefaultConnection "Server=(localdb)\MSSQLLocalDB;Database=SIGERE;Trusted_Connection=True;TrustServerCertificate=True" --project src/RetencionesRG830.Web
+```
+
+Sin esa cadena la aplicación no arranca y dice cómo configurarla: nunca usa otra base en
+silencio. `TrustServerCertificate` hace falta porque el cliente de SQL Server cifra por
+defecto y el certificado del servidor local es autofirmado.
 
 Usuarios de prueba:
 
@@ -38,7 +52,7 @@ Usuarios de prueba:
 src/
   RetencionesRG830.Domain          Entidades del negocio. NO depende de nada.
   RetencionesRG830.Application     Motor de cálculo, ValidadorCuit, LectorImporte, vigencia de regímenes, hashing.
-  RetencionesRG830.Infrastructure  EF Core 8 + SQLite, generador de PDF y de SICORE.
+  RetencionesRG830.Infrastructure  EF Core 8 + SQL Server, generador de PDF y de SICORE.
   RetencionesRG830.Web             ASP.NET Core MVC: controladores y vistas Razor.
 tests/
   RetencionesRG830.Tests           xUnit.
@@ -92,17 +106,15 @@ código. Mientras una figure como "no implementada", el sistema la viola.
     emitirse ningún certificado." No distingue causas: **sin certificado cuando la retención
     a practicar es $ 0, por cualquier causa** (el acumulado no llegó al monto no sujeto, o lo
     que falta retener queda debajo del mínimo).
-    *Hoy:* implementada (octubre de 2026). `Operacion.NumeroCertificado` es `int?` (migración
-    `NumeroCertificadoOpcional`) y `Operacion.TieneCertificado` lo pregunta.
+    *Hoy:* implementada (octubre de 2026). `Operacion.NumeroCertificado` es `int?` y
+    `Operacion.TieneCertificado` lo pregunta. El índice único `(ClienteId, NumeroCertificado)`
+    tiene el filtro `WHERE [NumeroCertificado] IS NOT NULL` (ver "SQL Server").
     `RegistrarAsync` asigna número sólo si la retención es mayor que 0: la que no retiene no
     consume correlativo, así que los certificados emitidos no tienen saltos. La selección de
     SICORE pasó del controlador a `ServicioRegistroOperaciones.OperacionesParaSicoreAsync`,
     con test, y deja afuera las operaciones sin certificado. Los dos generadores (SICORE y PDF)
     fallan si reciben una operación sin número. La confirmación, el listado (tag neutro
     "Sin certificado"), el detalle (el motivo en lugar del botón del PDF) y Anular lo dicen.
-    Las bases de desarrollo creadas antes pueden tener operaciones con $ 0 **y** número: se
-    registraron antes de la regla, la migración no las toca. Si molestan, se borra la base y
-    el seed la vuelve a crear.
 
 11. **No se registran operaciones de un cliente dado de baja.** No existen operaciones
     atrasadas: el estudio da de baja a un cliente el día 1 de un mes, después de cerrar el
@@ -158,7 +170,7 @@ Fuente: el autor, octubre de 2026. Sirve para dimensionar.
 | Hoy | 2 | ~10 | 2 o 3 | 40 a 60 | 480 a 720 |
 | Si lo adoptan todas | 20 | ~10 | 2 o 3 | 400 a 600 | 4.800 a 7.200 |
 
-Es poco para la base (SQLite alcanza sin problema), pero mucho para una pantalla: el listado
+Es poco para la base (SQL Server Express alcanza de sobra), pero mucho para una pantalla: el listado
 de operaciones del rol Estudio junta todas las empresas, y en pocos años son decenas de miles
 de filas. **Es lo que justifica la búsqueda y la paginación** en los listados.
 
@@ -194,6 +206,20 @@ es-AR, `87190.09` se interpreta como `8719009`: el punto se lee como separador d
   ("5.000.000") y manda el campo vacío, así que el mensaje que enseña nunca llegaba a
   verse. Los del Simulador todavía son `type="number"`: ahí el servidor rechaza igual, pero
   el operador ve lo que diga el navegador.
+- **Los espacios de los extremos se sacan antes de leer** (octubre de 2026): espacio común,
+  tabulación y espacio duro (NBSP). Antes `LectorImporte` rechazaba " 12" porque "el
+  navegador no manda espacios en un campo numérico", que era cierto con `type="number"` y
+  dejó de serlo al pasar a `type="text"`. Nadie revisó esa suposición al cambiar el tipo, y
+  "1000000,99" copiado de un mensaje, con un carácter invisible al final, se rechazaba con
+  el mensaje de separadores y decimales. El operador real va a pegar importes desde Excel, y
+  de ahí vienen esos caracteres. Se usa `Trim()`, no `NumberStyles.AllowLeadingWhite`, porque
+  éste no reconoce el NBSP. Un espacio **en el medio** ("1 000 000") sigue siendo inválido,
+  igual que "$ 1000000,99". **Lección:** cuando cambia una condición de la que depende una
+  regla (acá, el tipo del campo), hay que buscar las reglas que la suponían.
+- **Para probar a mano caracteres invisibles, no pasarlos como argumento de `curl`** en esta
+  máquina: el `curl` de Windows transforma los caracteres no ASCII y el servidor recibe otra
+  cosa (llegó el texto literal `%A0` en lugar de un NBSP). Mandar el cuerpo ya codificado
+  con `-d "Campo=1000000%2C99%C2%A0"`.
 - **En el archivo de SICORE**, `GeneradorArchivoSicore` formatea siempre con
   `CultureInfo.InvariantCulture` y después reemplaza el punto por coma. Es una de las dos
   causas de los rechazos de AFIP que hoy sufre el estudio (ver "Archivo de SICORE").
@@ -228,15 +254,48 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-138 tests en verde. Incluyen **golden tests**: cinco operaciones reales que el estudio ya
-practicó y presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del
-archivo de SICORE reproducidas carácter por carácter.
+188 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
+SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
+(`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
+(`Reproduce_las_lineas_reales_presentadas_por_el_estudio`) y los dos comprobantes de Gómez
+(`La_segunda_operacion_del_mes_acumula_y_descuenta_lo_ya_retenido`).
 
 **Esos tests son el activo más valioso del proyecto.** Si un cambio los rompe, el cambio
 está mal, no el test. Correr `dotnet test` antes de cada commit.
 
 El caso más importante son dos comprobantes del mismo proveedor en el mismo mes: el segundo
 sólo da correcto si se acumula, se aplica el piso una sola vez y se descuenta lo ya retenido.
+
+### Dos motores: SQLite por defecto, SQL Server antes de commitear persistencia
+
+Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de los dos:
+
+- **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
+  los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
+  recorta nada. Da 185 verdes y 3 omitidos (los que miran el catálogo de SQL Server, marcados
+  `[HechoEnSqlServer]`: figuran como omitidos, no como aprobados).
+- **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. ~7
+  segundos, 188 verdes.
+
+  ```powershell
+  $env:SIGERE_PRUEBAS_SQLSERVER = "Server=.\SQLEXPRESS;Trusted_Connection=True;TrustServerCertificate=True"
+  dotnet test
+  ```
+
+**Regla de trabajo: antes de commitear algo que toque la persistencia (entidades, DbContext,
+migraciones, consultas), correr la suite con SQL Server.**
+
+**El golden test de Gómez NO detecta que la base recorte decimales**, ni siquiera contra SQL
+Server: usa un solo contexto para las dos operaciones, y EF Core le devuelve a la segunda la
+entidad que ya tiene en memoria, sin mirar lo que quedó en la base. En producción cada pedido
+tiene su contexto. Lo detecta `PersistenciaTests.Gomez_con_un_contexto_nuevo_por_operacion`,
+que registra cada operación con su propio contexto. Verificado en octubre de 2026: con
+`MontoRetenido` en `decimal(18,2)`, ese test falla (esperado 3800,9918, la base devolvió
+3800,99) y el golden pasa. Contra SQLite también pasa, porque SQLite no recorta: por eso la
+regla de trabajo de arriba. En cualquier motor, el que sí avisa es
+`La_escala_del_monto_retenido_alcanza_para_alicuota_por_importe`, que mira el modelo.
 
 ---
 
@@ -377,6 +436,9 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
   de posiciones ya es la oficial y no cambia.
 - `README.md` y el comentario de `GeneradorArchivoSicoreTests` todavía dicen que el formato
   salió por ingeniería inversa. Hay que agregar contra qué documento se validó.
+- `README.md` todavía dice que el sistema usa SQLite y que alcanza con `dotnet run`. Desde la
+  migración a SQL Server hace falta configurar la cadena de conexión (ver "Cómo ejecutarlo"):
+  quien clone el repositorio público no puede arrancarlo sin eso.
 
 ### Pendientes para después de la entrega del 16 de noviembre de 2026
 
@@ -400,6 +462,35 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
 De las reglas confirmadas, la 14 (no reimprimir: guardar el PDF emitido) es la única que
 todavía no está implementada. Va con el pendiente 2.
 
+### Pendiente de decidir: el CUIT se guarda tal como se escribió (rompe la regla 8)
+
+Encontrado en octubre de 2026 al revisar qué pasa con los datos pegados desde Excel. **No se
+corrigió**: se decide aparte.
+
+`ValidadorCuit` controla sólo los dígitos, pero `ServicioClientes` y `ServicioProveedores`
+guardan el CUIT **tal como llegó**, y los índices únicos comparan ese texto. Probado en vivo
+contra SQL Server: Gómez (`20-31456789-8`, del seed) quedó cargado **cinco veces como
+proveedor del mismo cliente**, como `20-31456789-8`, `20314567898`, `20314567898` + NBSP,
+`20314567898` + tabulación y `20 31456789 8`. Con Clientes pasa lo mismo: Metalúrgica se
+volvió a dar de alta como `30612345674` + tabulación.
+
+- **Rompe la regla 8**, y la consecuencia de fondo es fiscal: las operaciones de un mismo
+  proveedor repartidas en dos registros arman **dos acumulados mensuales separados**. El
+  monto no sujeto se aplicaría dos veces en el mes y se retendría de menos (reglas 1 a 3).
+- Lo de los guiones (`20314567898` contra `20-31456789-8`) es previo a esto, no es un
+  problema de pegar: ya se podía duplicar escribiendo el CUIT de las dos formas.
+- El NBSP y la tabulación quedan **guardados dentro del CUIT**: invisibles en el listado y en
+  el certificado PDF. SICORE no se ve afectado, porque toma sólo los dígitos.
+- Con guiones y un carácter de más al final, el alta se rechaza con un mensaje engañoso: "El
+  CUIT no puede tener más de 13 caracteres", con 13 caracteres a la vista.
+- Un espacio común al final lo rechaza SQL Server como duplicado, porque al comparar textos
+  ignora los espacios finales. **Esto depende del motor:** SQLite no los ignora, y lo
+  guardaba como otro proveedor.
+
+Dirección probable de la solución, a confirmar: guardar el CUIT normalizado (por ejemplo,
+siempre con el formato `XX-XXXXXXXX-X`), que es lo que compara el índice único, y mostrarlo
+siempre igual. Hay que decidir qué hacer con los CUIT ya cargados en otro formato.
+
 ### Pregunta para el contador: anular no recalcula las operaciones posteriores del mes
 
 Anular una operación la saca del acumulado del mes, pero **no recalcula las posteriores del
@@ -414,29 +505,91 @@ Pregunta: ¿cómo se corrige en la operatoria del estudio? ¿Anulando y volviend
 posteriores, o de otra forma? Es una decisión del contador, no del sistema. Hoy el sistema no
 recalcula nada al anular.
 
-### Para la sesión de migración a SQL Server
+### SQL Server (migración de octubre de 2026)
 
-Se hace en una sesión propia, sin otros cambios: si algo se rompe, tiene que quedar claro que
-fue el cambio de motor. Las migraciones actuales son propias de SQLite (los `decimal` se
-guardan como `TEXT`): para SQL Server se genera una migración inicial nueva desde el modelo.
+Se migró de SQLite a SQL Server en una sesión propia, sin otros cambios. Las seis
+migraciones de SQLite se descartaron (guardaban los `decimal` como `TEXT`; quedan en el
+historial de Git) y se generó una sola, `InicialSqlServer`, desde el modelo. Los datos de
+las bases SQLite de desarrollo se descartaron: eran de prueba, y el seed vuelve a cargar los
+suyos. La aplicación ya no puede usar SQLite, a propósito; los tests sí (ver "Tests").
 
-- **VERIFICACIÓN OBLIGATORIA: el índice único `(ClienteId, NumeroCertificado)` tiene que
-  tener el filtro `WHERE [NumeroCertificado] IS NOT NULL`.** En SQLite los `NULL` no chocan
-  en un índice único. En SQL Server sí: un índice único común admite un solo `NULL` por
-  cliente. El proveedor de SQL Server de EF Core agrega el filtro por convención a los
-  índices únicos sobre columnas anulables, pero hay que **verlo escrito en la migración
-  generada**, no suponerlo. **Síntoma si falta:** el sistema funciona bien, emite
-  certificados, registra la primera operación que no llega al mínimo, y falla recién con la
-  **segunda** operación por debajo del mínimo del mismo cliente. Es un error que aparece tarde
-  y en producción, no en una prueba rápida.
+**Precisión de los decimales.** SQL Server guarda cada decimal con una escala fija y
+**recorta en silencio** lo que no entre (SQLite no recortaba nada). Cada columna guarda
+exactamente lo que produce el sistema; las constantes están en `RetencionesRG830DbContext`:
+
+| Qué | Columnas | Tipo |
+|---|---|---|
+| Pesos (escritos por el operador o fijados por la norma) | importes, base acumulada, monto no sujeto, mínimos, `Desde`, `Hasta`, `MontoFijo` | `decimal(18,2)` |
+| Alícuotas y porcentajes de escala, como fracción | las tres tasas de `Regimen`, `TramoEscala.Porcentaje` | `decimal(9,6)` |
+| Monto retenido, **sin redondear** | `Operacion.MontoRetenido` | `decimal(20,8)` |
+
+- **REGLA: la escala del monto retenido es mayor o igual que la de la alícuota más la del
+  importe** (8 >= 6 + 2): es alícuota por importe, y el pago siguiente del mes lo descuenta
+  tal cual (regla 3). Si se sube la escala de las alícuotas, hay que subir la del monto
+  retenido. Lo controla `PersistenciaTests.La_escala_del_monto_retenido_alcanza_para_alicuota_por_importe`.
+- Las alícuotas tienen margen (hoy usan dos decimales de seis) porque un recorte ahí no se
+  vería. **La futura pantalla de carga de regímenes tiene que rechazar alícuotas con más de
+  seis decimales**, y al cargar el anexo completo hay que confirmar que ninguna los tenga.
+- **Un decimal sin precisión declarada es un error, no una advertencia** (`OnConfiguring`
+  convierte `DecimalTypeDefaultWarning` en excepción): si se agrega uno y se olvida
+  declararlo, la aplicación no arranca y los tests fallan.
+
+**Lo que se verificó** (octubre de 2026):
+
+- **El filtro del índice de certificados**, en tres capas: escrito en la migración, en el SQL
+  que genera (`... WHERE [NumeroCertificado] IS NOT NULL`) y en la base real (`sys.indexes`,
+  test `El_indice_de_certificados_deja_afuera_las_operaciones_sin_numero`), además del
+  comportamiento (`Dos_operaciones_sin_certificado_del_mismo_cliente_se_guardan`). Se
+  escribió explícito con `HasFilter`, sin depender de la convención de EF. Sin el filtro, el
+  sistema anda bien y falla recién con la **segunda** operación que no llega al mínimo.
+- **Las 14 columnas decimales**, en la migración y en `INFORMATION_SCHEMA` (test
+  `Las_columnas_decimales_tienen_en_la_base_la_precision_declarada`), y su ida y vuelta con la
+  escala máxima (`Las_columnas_decimales_guardan_todos_sus_decimales`).
+- **De punta a punta:** la versión con SQLite y la versión con SQL Server, cada una con una
+  base nueva cargada por el seed, dieron **byte por byte el mismo listado y los mismos
+  archivos de SICORE** (el de septiembre del seed y el de los dos comprobantes de Gómez
+  cargados por formulario). Los dos renglones de Gómez coinciden además carácter por
+  carácter con las líneas reales que presentó el estudio, salvo el número de certificado
+  (posiciones 1 a 131).
+- `dotnet ef migrations has-pending-model-changes`: el modelo y la migración coinciden.
+
+**Intercalación:** `Modern_Spanish_CI_AS` (español, sin distinguir mayúsculas, distinguiendo
+acentos), fijada en el modelo con `UseCollation` para que sea la misma en todas las máquinas
+(LocalDB, por ejemplo, viene con otra). **El login no depende de ella:** el correo se guarda
+y se busca en minúsculas y sin espacios (`Usuario.Email`, `ServicioUsuarios`, tests en
+`ServicioUsuariosTests`, que pasan también en SQLite, que sí distingue mayúsculas).
+
+**Para la sesión de despliegue:**
+
+- **La intercalación se aplica sólo si la base la crea EF Core** (`CREATE DATABASE ...
+  COLLATE Modern_Spanish_CI_AS`, comprobado). No está en la migración. Si en producción la
+  base la crea otra persona antes, conserva la intercalación del servidor: hay que crearla con
+  esa intercalación, o dejar que la cree la aplicación. El test
+  `La_base_usa_la_intercalacion_del_modelo` lo controla en las bases de prueba, no en la de
+  producción.
+- La cadena de conexión de producción llega por la variable de entorno
+  `ConnectionStrings__DefaultConnection`.
+- `Migrate` se ejecuta al arrancar la aplicación: en producción conviene decidir si se deja
+  así (el usuario de la base necesita permisos para crear tablas) o si la migración se aplica
+  aparte, antes de desplegar.
+
+**Pendientes de SQL Server:**
+
 - **Dos confirmaciones simultáneas para el mismo cliente reciben el mismo número.**
   `RegistrarAsync` calcula `Max(NumeroCertificado) + 1` y después guarda: si dos personas
   confirman a la vez, las dos calculan el mismo número. El índice único rechaza la segunda,
   pero con un error 500 y la operación sin registrar. Es previo a la regla 10. Se resuelve
-  con una transacción que abarque el cálculo del número y el guardado.
+  con una transacción que abarque el cálculo del número y el guardado, en un commit aparte y
+  **sólo con la migración ya en verde y commiteada**; si ese día no da el tiempo, es otra
+  sesión.
+- **`CreadoPorUsuarioId` y `AnuladaPorUsuarioId` no tienen clave foránea a `Usuarios`**: la
+  base no impide guardar como responsable de una operación o de una anulación un usuario que
+  no existe. Ya era así con SQLite. Es un cambio de modelo con su propia migración: no se
+  mezcló con el cambio de motor, para que si algo falla se sepa cuál de los dos fue.
 - Para generar migraciones hace falta la herramienta `dotnet-ef` versión 8 (`dotnet tool
   install -g dotnet-ef --version "8.*"`). No está en el repositorio: se instala en cada
-  máquina.
+  máquina. `dotnet ef` lee la cadena de conexión de User Secrets, que sólo se cargan en
+  Development: se corre con `ASPNETCORE_ENVIRONMENT=Development`.
 
 ---
 

@@ -53,17 +53,35 @@ builder.Services.AddControllersWithViews(opciones =>
     mensajes.SetNonPropertyValueMustBeANumberAccessor(() => "Tiene que ser un número.");
 });
 
-// Conectamos el DbContext a una base de datos SQLite: un solo archivo
-// (retenciones.db) que se crea en la carpeta del proyecto Web. La cadena de
-// conexión ("dónde está el archivo") vive en appsettings.json, no acá, para
-// poder cambiarla sin tocar código (por ejemplo, el día de mañana, para
-// apuntar a un SQL Server en vez de a SQLite).
-builder.Services.AddDbContext<RetencionesRG830DbContext>(options => 
-options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Conectamos el DbContext a SQL Server (hasta octubre de 2026 era SQLite).
+//
+// La cadena de conexión NO está en appsettings.json: el repositorio es público, y
+// además cada máquina tiene su propio servidor (SQL Server Express en una, LocalDB
+// en otra). En desarrollo cada máquina la guarda en User Secrets, fuera del
+// repositorio:
+//   dotnet user-secrets set ConnectionStrings:DefaultConnection "<cadena>" --project src/RetencionesRG830.Web
+// En producción llega por la variable de entorno ConnectionStrings__DefaultConnection.
+//
+// Si falta, la aplicación no arranca y dice cómo configurarla: nunca usa otra base
+// en silencio.
+var cadenaDeConexion = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(cadenaDeConexion))
+{
+    throw new InvalidOperationException(
+        "Falta la cadena de conexión a SQL Server (ConnectionStrings:DefaultConnection). "
+        + "En desarrollo se configura con: dotnet user-secrets set ConnectionStrings:DefaultConnection "
+        + "\"Server=.\\SQLEXPRESS;Database=SIGERE;Trusted_Connection=True;TrustServerCertificate=True\" "
+        + "--project src/RetencionesRG830.Web (en una máquina con LocalDB, Server=(localdb)\\MSSQLLocalDB). "
+        + "Ver CLAUDE.md, sección de SQL Server.");
+}
+
+builder.Services.AddDbContext<RetencionesRG830DbContext>(options =>
+    options.UseSqlServer(cadenaDeConexion));
 
 builder.Services.AddScoped<ServicioRegistroOperaciones>();
 builder.Services.AddScoped<ServicioProveedores>();
 builder.Services.AddScoped<ServicioClientes>();
+builder.Services.AddScoped<ServicioUsuarios>();
 builder.Services.AddScoped<GeneradorCertificadoPdf>();
 builder.Services.AddScoped<GeneradorArchivoSicore>();
 // Registramos el sistema de autenticación por cookies: cuando alguien haga
