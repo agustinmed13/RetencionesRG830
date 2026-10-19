@@ -89,8 +89,10 @@ public class GeneradorArchivoSicore
             SinFechaExclusion,
             // 110-111 Tipo de documento del retenido (80 = CUIT)
             TipoDocumentoCuit,
-            // 112-131 Número de documento
-            SoloDigitos(proveedor.Cuit).PadLeft(20, '0'),
+            // 112-131 Número de documento: los 11 dígitos del CUIT con ceros a la
+            // izquierda. El CUIT ya se guarda sin guiones (NormalizadorCuit), así
+            // que va tal cual.
+            proveedor.Cuit.PadLeft(20, '0'),
             // 132-145 Número de certificado
             numeroCertificado.ToString("D14", CultureInfo.InvariantCulture));
     }
@@ -107,7 +109,4 @@ public class GeneradorArchivoSicore
         var texto = valor.ToString("F2", CultureInfo.InvariantCulture).Replace('.', ',');
         return texto.PadLeft(ancho, '0');
     }
-
-    private static string SoloDigitos(string texto)
-        => new string(texto.Where(char.IsDigit).ToArray());
 }

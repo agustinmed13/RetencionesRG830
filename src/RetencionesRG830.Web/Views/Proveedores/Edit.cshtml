@@ -20,7 +20,7 @@
 <div class="banda">
     <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-users" /></svg>
     <span>
-        Agente de retención: <b>@Model.Cliente?.RazonSocial</b>@if (Model.Cliente is not null){<text> · CUIT <span class="cuit">@Model.Cliente.Cuit</span></text>}
+        Agente de retención: <b>@Model.Cliente?.RazonSocial</b>@if (Model.Cliente is not null){<text> · CUIT <span class="cuit">@FormatoCuit.ParaMostrar(Model.Cliente.Cuit)</span></text>}
     </span>
     @if (Model.Cliente is { Activo: false })
     {

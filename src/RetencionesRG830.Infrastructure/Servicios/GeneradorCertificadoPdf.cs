@@ -1,6 +1,7 @@
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
 
 namespace RetencionesRG830.Infrastructure.Servicios;
@@ -55,7 +56,7 @@ public class GeneradorCertificadoPdf
 
                     Seccion(col, "DATOS DEL AGENTE DE RETENCIÓN", new[]
                     {
-                        ("CUIT:", cliente.Cuit),
+                        ("CUIT:", FormatoCuit.ParaMostrar(cliente.Cuit)),
                         ("DENOMINACIÓN:", cliente.RazonSocial),
                         ("DOMICILIO:", cliente.Domicilio),
                         ("LOCALIDAD - PCIA:", cliente.Localidad),
@@ -63,7 +64,7 @@ public class GeneradorCertificadoPdf
 
                     Seccion(col, "DATOS DEL SUJETO RETENIDO", new[]
                     {
-                        ("CUIT:", proveedor.Cuit),
+                        ("CUIT:", FormatoCuit.ParaMostrar(proveedor.Cuit)),
                         ("DENOMINACIÓN:", proveedor.RazonSocial),
                         ("DOMICILIO:", proveedor.Domicilio),
                         ("LOCALIDAD - PCIA:", proveedor.Localidad),

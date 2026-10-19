@@ -88,7 +88,7 @@ public static class DbInitializer
 
         var gimi = new Cliente
         {
-            Cuit = "30-61234567-4",
+            Cuit = "30612345674",
             RazonSocial = "Metalúrgica del Valle S.A.",
             Domicilio = "Av. San Martín 1250",
             Localidad = "Salta - SALTA",
@@ -126,7 +126,7 @@ public static class DbInitializer
             return; // ya hay proveedores cargados, no hacemos nada.
         }
 
-        var gimi = context.Clientes.FirstOrDefault(c => c.Cuit == "30-61234567-4");
+        var gimi = context.Clientes.FirstOrDefault(c => c.Cuit == "30612345674");
         if (gimi is null) return;
 
         const string localidad = "Salta - SALTA";
@@ -139,7 +139,7 @@ public static class DbInitializer
             new Proveedor
             {
                 ClienteId = gimi.Id,
-                Cuit = "20-31456789-8",
+                Cuit = "20314567898",
                 RazonSocial = "Gómez, Carlos Alberto",
                 Domicilio = "Belgrano 340",
                 Localidad = localidad,
@@ -149,7 +149,7 @@ public static class DbInitializer
             new Proveedor
             {
                 ClienteId = gimi.Id,
-                Cuit = "30-64567891-1",
+                Cuit = "30645678911",
                 RazonSocial = "Servicios del Sur S.H.",
                 Domicilio = "Rivadavia 88",
                 Localidad = localidad,
@@ -159,7 +159,7 @@ public static class DbInitializer
             new Proveedor
             {
                 ClienteId = gimi.Id,
-                Cuit = "27-32567894-7",
+                Cuit = "27325678947",
                 RazonSocial = "Ramírez, Laura Beatriz",
                 Domicilio = "Sarmiento 512",
                 Localidad = localidad,
@@ -169,7 +169,7 @@ public static class DbInitializer
             new Proveedor
             {
                 ClienteId = gimi.Id,
-                Cuit = "27-33678912-0",
+                Cuit = "27336789120",
                 RazonSocial = "Sosa, Marta Elena",
                 Domicilio = "Güemes 275",
                 Localidad = localidad,
@@ -194,7 +194,7 @@ public static class DbInitializer
     /// </summary>
     private static void SeedSegundoClienteDePrueba(RetencionesRG830DbContext context)
     {
-        const string cuitCliente = "30-71845236-4";
+        const string cuitCliente = "30718452364";
         if (context.Clientes.Any(c => c.Cuit == cuitCliente))
         {
             return; // ya está cargado, no hacemos nada.
@@ -228,7 +228,7 @@ public static class DbInitializer
         var transportes = new Proveedor
         {
             ClienteId = agroinsumos.Id,
-            Cuit = "30-70927518-2",
+            Cuit = "30709275182",
             RazonSocial = "Transportes Altiplano S.A.",
             Domicilio = "Ruta 9 km 1650",
             Localidad = localidad,
@@ -238,7 +238,7 @@ public static class DbInitializer
         var ruiz = new Proveedor
         {
             ClienteId = agroinsumos.Id,
-            Cuit = "20-28765431-7",
+            Cuit = "20287654317",
             RazonSocial = "Ruiz, Héctor Damián",
             Domicilio = "Lavalle 145",
             Localidad = localidad,
@@ -248,7 +248,7 @@ public static class DbInitializer
         var paz = new Proveedor
         {
             ClienteId = agroinsumos.Id,
-            Cuit = "27-34981206-7",
+            Cuit = "27349812067",
             RazonSocial = "Paz, Silvia Noemí",
             Domicilio = "Necochea 63",
             Localidad = localidad,

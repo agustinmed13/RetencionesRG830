@@ -22,4 +22,33 @@ public class ValidadorCuitTests
     {
         Assert.False(ValidadorCuit.EsValido(cuit));
     }
+
+    // --- El motivo ----------------------------------------------------------
+    // Antes todo CUIT inválido decía "el dígito verificador no coincide", también
+    // con 10 dígitos (2045332916, probado en el formulario).
+
+    [Theory]
+    [InlineData("2045332916", "El CUIT tiene 10 dígitos; tienen que ser 11.")]
+    [InlineData("20-4533291-6", "El CUIT tiene 10 dígitos; tienen que ser 11.")]
+    [InlineData("204533291612", "El CUIT tiene 12 dígitos; tienen que ser 11.")]
+    [InlineData("2", "El CUIT tiene 1 dígito; tienen que ser 11.")]
+    [InlineData("", "El CUIT tiene 0 dígitos; tienen que ser 11.")]
+    public void Sin_11_digitos_el_motivo_dice_cuantos_tiene(string cuit, string mensaje)
+    {
+        Assert.Equal(mensaje, ValidadorCuit.Motivo(cuit));
+    }
+
+    [Theory]
+    [InlineData("20-12345678-4")]
+    [InlineData("20123456784")]
+    public void Con_11_digitos_y_el_verificador_mal_el_motivo_es_el_verificador(string cuit)
+    {
+        Assert.Equal("El CUIT ingresado no es válido (el dígito verificador no coincide).", ValidadorCuit.Motivo(cuit));
+    }
+
+    [Fact]
+    public void Un_CUIT_valido_no_tiene_motivo()
+    {
+        Assert.Null(ValidadorCuit.Motivo("20-12345678-6"));
+    }
 }

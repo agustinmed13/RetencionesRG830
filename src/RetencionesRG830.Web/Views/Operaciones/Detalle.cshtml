@@ -25,7 +25,7 @@
     </div>
     <table class="table mb-0">
         <tbody>
-            <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial (@Model.Proveedor?.Cuit)</td></tr>
+            <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial (@FormatoCuit.ParaMostrar(Model.Proveedor?.Cuit))</td></tr>
             @* Con qué versión del régimen se calculó (regla 9). La operación guarda el
                RegimenId de la versión usada: cambiar de versión después no la altera. *@
             <tr><td>Régimen</td><td>@Model.Regimen?.Codigo - @Model.Regimen?.Descripcion<br /><small>Régimen @Model.Regimen?.Codigo · valores vigentes desde @Model.Regimen?.VigenciaDesde.ToString("dd/MM/yyyy")</small></td></tr>

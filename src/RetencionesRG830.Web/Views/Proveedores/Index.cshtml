@@ -82,7 +82,7 @@ else
                         {
                             <td><span class="recortado" title="@proveedor.Cliente?.RazonSocial">@proveedor.Cliente?.RazonSocial</span></td>
                         }
-                        <td class="cuit">@proveedor.Cuit</td>
+                        <td class="cuit">@FormatoCuit.ParaMostrar(proveedor.Cuit)</td>
                         <td>@proveedor.RazonSocial</td>
                         <td>@proveedor.Localidad</td>
                         <td>@FormatoProveedor.Condicion(proveedor)</td>

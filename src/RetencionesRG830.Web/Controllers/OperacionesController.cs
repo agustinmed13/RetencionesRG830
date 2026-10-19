@@ -505,7 +505,7 @@ public class OperacionesController : Controller
 
         ViewBag.Proveedores = proveedores
             .Select(p => new OpcionConAyuda(p.Id, p.RazonSocial,
-                $"{p.Cuit} · {FormatoProveedor.Condicion(p)}"))
+                $"{FormatoCuit.ParaMostrar(p.Cuit)} · {FormatoProveedor.Condicion(p)}"))
             .ToList();
 
         // Una opción por CÓDIGO, no por versión (regla 9): el valor de cada opción es

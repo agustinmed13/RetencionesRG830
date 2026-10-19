@@ -170,9 +170,10 @@ public class ProveedoresController : Controller
 
     private void ValidarCuit(Proveedor proveedor)
     {
-        if (!ValidadorCuit.EsValido(proveedor.Cuit))
+        // El mensaje dice la causa: cuántos dígitos tiene, o que el verificador no cierra.
+        if (ValidadorCuit.Motivo(proveedor.Cuit) is string motivo)
         {
-            ModelState.AddModelError(nameof(Proveedor.Cuit), "El CUIT ingresado no es válido (el dígito verificador no coincide).");
+            ModelState.AddModelError(nameof(Proveedor.Cuit), motivo);
         }
     }
 }

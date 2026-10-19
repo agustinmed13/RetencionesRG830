@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 188 tests: 185 verdes y 3 omitidos (ver Tests)
+dotnet test                                      # 222 tests: 214 verdes y 8 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -51,7 +51,7 @@ Usuarios de prueba:
 ```
 src/
   RetencionesRG830.Domain          Entidades del negocio. NO depende de nada.
-  RetencionesRG830.Application     Motor de cálculo, ValidadorCuit, LectorImporte, vigencia de regímenes, hashing.
+  RetencionesRG830.Application     Motor de cálculo, ValidadorCuit, FormatoCuit, LectorImporte, vigencia de regímenes, hashing.
   RetencionesRG830.Infrastructure  EF Core 8 + SQL Server, generador de PDF y de SICORE.
   RetencionesRG830.Web             ASP.NET Core MVC: controladores y vistas Razor.
 tests/
@@ -88,6 +88,9 @@ Salen de la norma y de la operatoria real del estudio. Cada una está cubierta p
    Hay índice único en `(ClienteId, NumeroCertificado)`.
 8. **Un proveedor pertenece a un único cliente.** Índice único en `(ClienteId, Cuit)`:
    dos clientes distintos pueden tener el mismo proveedor, uno no puede tenerlo dos veces.
+   El índice compara el CUIT en su forma canónica, los 11 dígitos sin separadores: escrito
+   con o sin guiones es el mismo proveedor (ver "Resuelto: el CUIT se guarda en forma
+   canónica").
 9. **Las reglas de la RG 830 son datos, no código.** Viven en la entidad `Regimen` con
    fecha de vigencia. Una operación se calcula con los valores vigentes a su fecha de
    retención. Nunca escribir una tasa o un piso dentro del código.
@@ -254,7 +257,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-188 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+222 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -273,11 +276,16 @@ Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de 
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 185 verdes y 3 omitidos (los que miran el catálogo de SQL Server, marcados
-  `[HechoEnSqlServer]`: figuran como omitidos, no como aprobados).
+  recorta nada. Da 214 verdes y 8 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server y los 5 de
+  `MigracionNormalizaCuitTests`, que prueban el SQL de esa migración.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. ~7
-  segundos, 188 verdes.
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 222
+  verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
+  bien, y entre 40 segundos y 1 minuto con LocalDB (medido en octubre de 2026). Si tarda
+  minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el
+  18/10/2026 un SQL Server Express local tardó 4 minutos, con timeouts, también con el
+  código del commit anterior; contra LocalDB, en la misma máquina, la suite pasó entera.
 
   ```powershell
   $env:SIGERE_PRUEBAS_SQLSERVER = "Server=.\SQLEXPRESS;Trusted_Connection=True;TrustServerCertificate=True"
@@ -462,34 +470,65 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
 De las reglas confirmadas, la 14 (no reimprimir: guardar el PDF emitido) es la única que
 todavía no está implementada. Va con el pendiente 2.
 
-### Pendiente de decidir: el CUIT se guarda tal como se escribió (rompe la regla 8)
+### Resuelto: el CUIT se guarda en forma canónica (regla 8)
 
-Encontrado en octubre de 2026 al revisar qué pasa con los datos pegados desde Excel. **No se
-corrigió**: se decide aparte.
+Hasta octubre de 2026 el CUIT se guardaba **tal como se escribió**, y los índices únicos
+comparaban ese texto: `30-70000000-8` y `30700000008` eran dos proveedores distintos del
+mismo cliente. Rompía la regla 8, con una consecuencia fiscal: dos fichas del mismo proveedor
+arman dos acumulados mensuales, el monto no sujeto se descuenta dos veces y se retiene de
+menos. Medido en el test `CuitConDistintoFormatoTests.El_mismo_CUIT_con_otro_formato_no_parte_el_acumulado_del_mes`
+(régimen 78 del seed, dos pagos de $ 1.000.000 en el mes): con dos fichas se retenían
+$ 31.040 en lugar de $ 35.520, $ 4.480 de menos, que es el monto no sujeto descontado una vez
+de más (224.000 × 2 %). El test afirma las tres cifras.
 
-`ValidadorCuit` controla sólo los dígitos, pero `ServicioClientes` y `ServicioProveedores`
-guardan el CUIT **tal como llegó**, y los índices únicos comparan ese texto. Probado en vivo
-contra SQL Server: Gómez (`20-31456789-8`, del seed) quedó cargado **cinco veces como
-proveedor del mismo cliente**, como `20-31456789-8`, `20314567898`, `20314567898` + NBSP,
-`20314567898` + tabulación y `20 31456789 8`. Con Clientes pasa lo mismo: Metalúrgica se
-volvió a dar de alta como `30612345674` + tabulación.
+Cómo quedó:
 
-- **Rompe la regla 8**, y la consecuencia de fondo es fiscal: las operaciones de un mismo
-  proveedor repartidas en dos registros arman **dos acumulados mensuales separados**. El
-  monto no sujeto se aplicaría dos veces en el mes y se retendría de menos (reglas 1 a 3).
-- Lo de los guiones (`20314567898` contra `20-31456789-8`) es previo a esto, no es un
-  problema de pegar: ya se podía duplicar escribiendo el CUIT de las dos formas.
-- El NBSP y la tabulación quedan **guardados dentro del CUIT**: invisibles en el listado y en
-  el certificado PDF. SICORE no se ve afectado, porque toma sólo los dígitos.
-- Con guiones y un carácter de más al final, el alta se rechaza con un mensaje engañoso: "El
-  CUIT no puede tener más de 13 caracteres", con 13 caracteres a la vista.
-- Un espacio común al final lo rechaza SQL Server como duplicado, porque al comparar textos
-  ignora los espacios finales. **Esto depende del motor:** SQLite no los ignora, y lo
-  guardaba como otro proveedor.
+- **Forma canónica: los 11 dígitos, sin separadores** (`30700000008`). Es lo que se guarda,
+  lo que comparan los índices únicos y lo que se busca. El seed está escrito así.
+- **La normalización está en la entidad**, en el setter de `Cliente.Cuit` y de
+  `Proveedor.Cuit` (`NormalizadorCuit`, en Domain), igual que `Usuario.Email`: ningún camino
+  la puede saltear, ni el servicio, ni el seed, ni un test que arma la entidad a mano. Deja
+  sólo los dígitos del 0 al 9: saca guiones, puntos, espacios, espacios duros (NBSP) y
+  tabulaciones. Al leer de la base, EF Core carga el campo directamente, sin pasar por el
+  setter.
+- **La validación está en `SaveChanges`** (`RetencionesRG830DbContext.ValidarCuits`), con
+  `ValidadorCuit`: un cliente o proveedor nuevo, o cuyo CUIT cambió, que no tenga 11 dígitos
+  con el verificador correcto no se guarda (`InvalidOperationException`). No puede estar en
+  la entidad: `ValidadorCuit` está en Application, y Domain no depende de nada. Tampoco
+  conviene: un setter que lanza no es un error de validación, ASP.NET lo muestra como un
+  formulario ilegible. Los formularios siguen controlando antes, con mensaje amable
+  (`ValidarCuit` en los controladores de Clientes y Proveedores).
+- **El formato con guiones es sólo de presentación** (`FormatoCuit.ParaMostrar`, en
+  Application porque lo usa también el certificado, que arma Infrastructure): listados,
+  formularios, confirmaciones de baja, Nueva operación, confirmación, Detalle y certificado
+  PDF. Lo que no son 11 dígitos se muestra tal cual, sin romper la pantalla. El campo CUIT de
+  los formularios de alta y edición recibe el valor con guiones de `CampoCuit.Valor`; si el
+  formulario vuelve con un error, muestra lo que escribió el operador.
+- **SICORE no cambió:** el campo 112-131 son los 11 dígitos con ceros a la izquierda hasta
+  20. El generador ya no saca los guiones (no hay). Verificado: los golden tests siguen en
+  verde, y el archivo del seed descargado de la aplicación salió byte por byte igual antes y
+  después del cambio, con el mismo nombre de archivo.
+- **Los datos ya guardados** los normaliza la migración `NormalizaCuit`. Si dos filas quedaran
+  con el mismo CUIT (dos clientes, o dos proveedores del mismo cliente), o un CUIT no quedara
+  con 11 dígitos, **falla sin modificar nada** y el mensaje nombra cada fila con su Id, su
+  razón social y el CUIT tal como estaba guardado. A propósito no borra ni fusiona: cuál
+  ficha se conserva y qué se hace con sus operaciones lo decide una persona. Lo prueban los
+  tests de `MigracionNormalizaCuitTests` (sólo SQL Server). No controla el dígito verificador.
+  No tiene vuelta atrás (`Down` vacío): cómo se había escrito cada CUIT no quedó en ningún lado.
 
-Dirección probable de la solución, a confirmar: guardar el CUIT normalizado (por ejemplo,
-siempre con el formato `XX-XXXXXXXX-X`), que es lo que compara el índice único, y mostrarlo
-siempre igual. Hay que decidir qué hacer con los CUIT ya cargados en otro formato.
+### Pendiente: limpiar los duplicados de la base de la PC de escritorio
+
+En la base de la PC (SQL Server Express) quedaron los duplicados de las pruebas de octubre
+de 2026: Gómez (`20-31456789-8`) **cinco veces como proveedor del mismo cliente**, como
+`20-31456789-8`, `20314567898`, `20314567898` + NBSP, `20314567898` + tabulación y
+`20 31456789 8`, y Metalúrgica dos veces como cliente (`30-61234567-4` y `30612345674` +
+tabulación). **Ahí la migración `NormalizaCuit` va a fallar, y la aplicación no va a
+arrancar** (`Migrate` corre al inicio): es lo esperado. El mensaje lista las filas.
+
+Para resolverlo, decidir con cada grupo qué fila se conserva, pasar sus operaciones a esa
+ficha (o anularlas) y borrar las demás; después volver a arrancar. Son datos de prueba, así
+que también vale borrar la base entera y dejar que el seed la vuelva a crear. En la
+notebook (LocalDB) la migración se aplicó el 18/10/2026 sin colisiones.
 
 ### Pregunta para el contador: anular no recalcula las operaciones posteriores del mes
 

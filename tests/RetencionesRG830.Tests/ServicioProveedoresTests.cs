@@ -186,7 +186,8 @@ public class ServicioProveedoresTests : IDisposable
     private Proveedor LeerAlta()
     {
         using var db = new RetencionesRG830DbContext(_opciones);
-        return db.Proveedores.Single(p => p.Cuit == CuitAlta);
+        var cuit = NormalizadorCuit.Normalizar(CuitAlta);
+        return db.Proveedores.Single(p => p.Cuit == cuit);
     }
 
     [Fact]

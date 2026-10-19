@@ -58,7 +58,8 @@ public class SicoreController : Controller
         // hacer que AFIP rechace la importación.
         var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(contenido);
 
-        var nombre = $"SICORE-{SoloDigitos(cliente.Cuit)}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.txt";
+        // El CUIT ya se guarda sólo con sus dígitos (NormalizadorCuit).
+        var nombre = $"SICORE-{cliente.Cuit}-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.txt";
 
         return File(bytes, "text/plain", nombre);
     }
@@ -72,7 +73,4 @@ public class SicoreController : Controller
 
         ViewBag.Clientes = new SelectList(clientes, "Id", "RazonSocial");
     }
-
-    private static string SoloDigitos(string texto)
-        => new string(texto.Where(char.IsDigit).ToArray());
 }

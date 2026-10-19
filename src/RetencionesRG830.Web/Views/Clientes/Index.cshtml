@@ -48,7 +48,7 @@
                 @foreach (var cliente in clientes)
                 {
                     <tr>
-                        <td class="cuit">@cliente.Cuit</td>
+                        <td class="cuit">@FormatoCuit.ParaMostrar(cliente.Cuit)</td>
                         <td>@cliente.RazonSocial</td>
                         <td>@cliente.Localidad</td>
                         <td>

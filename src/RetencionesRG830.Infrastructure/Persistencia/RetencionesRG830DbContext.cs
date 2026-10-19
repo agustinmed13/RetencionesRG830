@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
 
 namespace RetencionesRG830.Infrastructure.Persistencia;
@@ -64,6 +65,50 @@ public class RetencionesRG830DbContext : DbContext
     {
         optionsBuilder.ConfigureWarnings(advertencias =>
             advertencias.Throw(SqlServerEventId.DecimalTypeDefaultWarning));
+    }
+
+    // ---------- CUIT válido al guardar ----------
+    // Cliente y Proveedor normalizan el CUIT en su setter (sólo dígitos), pero
+    // normalizar no es validar: "20-3145678-8" queda en diez dígitos. Acá se
+    // controla, con ValidadorCuit, que lo que se va a guardar sean 11 dígitos con el
+    // verificador correcto. Está en el contexto porque es el único lugar por donde
+    // pasa todo guardado: el servicio, el seed o un test que arma la entidad a mano.
+    // Los formularios lo controlan antes con un mensaje amable (ValidarCuit en
+    // ClientesController y ProveedoresController); llegar hasta acá con un CUIT
+    // inválido es un error de programación, no del operador.
+    //
+    // Sólo se miran las filas nuevas y las que cambian el CUIT: dar de baja un
+    // cliente viejo no tiene por qué fallar por un dato que no se tocó.
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ValidarCuits();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ValidarCuits();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ValidarCuits()
+    {
+        var aGuardar = ChangeTracker.Entries<Cliente>()
+            .Where(e => e.State == EntityState.Added
+                     || (e.State == EntityState.Modified && e.Property(c => c.Cuit).IsModified))
+            .Select(e => (Entidad: "cliente", e.Entity.RazonSocial, e.Entity.Cuit))
+            .Concat(ChangeTracker.Entries<Proveedor>()
+                .Where(e => e.State == EntityState.Added
+                         || (e.State == EntityState.Modified && e.Property(p => p.Cuit).IsModified))
+                .Select(e => (Entidad: "proveedor", e.Entity.RazonSocial, e.Entity.Cuit)));
+
+        foreach (var (entidad, razonSocial, cuit) in aGuardar)
+        {
+            if (ValidadorCuit.Motivo(cuit) is string motivo)
+                throw new InvalidOperationException(
+                    $"No se puede guardar el {entidad} {razonSocial} con el CUIT \"{cuit}\". {motivo}");
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

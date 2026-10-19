@@ -132,7 +132,8 @@ public class ServicioClientesTests : IDisposable
     private Cliente LeerAlta()
     {
         using var db = new RetencionesRG830DbContext(_opciones);
-        return db.Clientes.Single(c => c.Cuit == CuitAlta);
+        var cuit = NormalizadorCuit.Normalizar(CuitAlta);
+        return db.Clientes.Single(c => c.Cuit == cuit);
     }
 
     [Fact]

@@ -119,9 +119,10 @@ public class ClientesController : Controller
 
     private void ValidarCuit(Cliente cliente)
     {
-        if (!ValidadorCuit.EsValido(cliente.Cuit))
+        // El mensaje dice la causa: cuántos dígitos tiene, o que el verificador no cierra.
+        if (ValidadorCuit.Motivo(cliente.Cuit) is string motivo)
         {
-            ModelState.AddModelError(nameof(Cliente.Cuit), "El CUIT ingresado no es válido (el dígito verificador no coincide).");
+            ModelState.AddModelError(nameof(Cliente.Cuit), motivo);
         }
     }
 }

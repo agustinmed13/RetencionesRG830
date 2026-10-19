@@ -26,7 +26,7 @@
 <div class="aviso" role="note">
     <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
     <span>
-        Vas a @(esBaja ? "dar de baja a" : "reactivar a") <b>@Model.RazonSocial</b>, CUIT <b class="cuit">@Model.Cuit</b>.
+        Vas a @(esBaja ? "dar de baja a" : "reactivar a") <b>@Model.RazonSocial</b>, CUIT <b class="cuit">@FormatoCuit.ParaMostrar(Model.Cuit)</b>.
         Todavía no se cambió nada.
     </span>
 </div>
@@ -35,7 +35,7 @@
     <div class="tarjeta">
         <div class="resumen">
             <div class="dato"><div class="etiqueta">Razón social</div><div class="valor">@Model.RazonSocial</div></div>
-            <div class="dato"><div class="etiqueta">CUIT</div><div class="valor cuit">@Model.Cuit</div></div>
+            <div class="dato"><div class="etiqueta">CUIT</div><div class="valor cuit">@FormatoCuit.ParaMostrar(Model.Cuit)</div></div>
             <div class="dato"><div class="etiqueta">Localidad</div><div class="valor">@Model.Localidad</div></div>
             <div class="dato">
                 <div class="etiqueta">Estado</div>

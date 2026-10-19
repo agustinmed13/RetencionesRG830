@@ -35,8 +35,8 @@
             <div class="rejilla rejilla-2">
                 <div class="campo">
                     <label for="Cuit">CUIT <span class="requerido">*</span></label>
-                    <input asp-for="Cuit" class="campo-control cuit" placeholder="20-12345678-6" />
-                    <div class="campo-ayuda">Con guiones. Se controla el dígito verificador.</div>
+                    <input asp-for="Cuit" value="@RetencionesRG830.Web.Infraestructura.CampoCuit.Valor(ViewData.ModelState, Model.Cuit)" class="campo-control cuit" placeholder="20-12345678-6" />
+                    <div class="campo-ayuda">Con o sin guiones. Se controla el dígito verificador.</div>
                     <span asp-validation-for="Cuit" class="campo-error"></span>
                 </div>
                 <div class="campo">

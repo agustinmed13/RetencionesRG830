@@ -23,10 +23,23 @@ public class Proveedor
     public int ClienteId { get; set; }
     public Cliente? Cliente { get; set; }
 
+    private string _cuit = string.Empty;
+
+    /// <summary>
+    /// Se guarda siempre sólo con sus 11 dígitos, sin separadores (ver
+    /// NormalizadorCuit): así el índice único (ClienteId, Cuit) no deja cargar dos
+    /// veces el mismo proveedor escribiendo el CUIT de dos formas (regla 8). Al leer
+    /// de la base, EF Core carga el campo _cuit directamente, sin pasar por el
+    /// setter: lo guardado ya está normalizado.
+    /// </summary>
     [Required(ErrorMessage = "El CUIT es obligatorio.")]
     [StringLength(13, ErrorMessage = "El CUIT no puede tener más de 13 caracteres.")]
     [Display(Name = "CUIT")]
-    public string Cuit { get; set; } = string.Empty;
+    public string Cuit
+    {
+        get => _cuit;
+        set => _cuit = NormalizadorCuit.Normalizar(value);
+    }
 
     [Required(ErrorMessage = "La razón social es obligatoria.")]
     [StringLength(200)]

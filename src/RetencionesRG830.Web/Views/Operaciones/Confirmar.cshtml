@@ -40,7 +40,7 @@
         <div class="resumen">
             <div class="dato"><div class="etiqueta">Agente de retención</div><div class="valor">@Model.ClienteRazonSocial</div></div>
             <div class="dato"><div class="etiqueta">Proveedor</div><div class="valor">@Model.ProveedorNombre</div></div>
-            <div class="dato"><div class="etiqueta">CUIT del proveedor</div><div class="valor cuit">@Model.ProveedorCuit</div></div>
+            <div class="dato"><div class="etiqueta">CUIT del proveedor</div><div class="valor cuit">@FormatoCuit.ParaMostrar(Model.ProveedorCuit)</div></div>
             <div class="dato"><div class="etiqueta">Condición</div><div class="valor">@Model.ProveedorCondicion</div></div>
             <div class="dato"><div class="etiqueta">Comprobante</div><div class="valor">@comprobante</div></div>
             <div class="dato"><div class="etiqueta">Régimen</div><div class="valor"><span class="regimen">@Model.RegimenCodigo</span> @Model.RegimenNombre</div><div class="texto-atenuado">Valores vigentes desde <span class="fecha">@Model.RegimenVigenciaDesde.ToString("dd/MM/yyyy")</span></div></div>

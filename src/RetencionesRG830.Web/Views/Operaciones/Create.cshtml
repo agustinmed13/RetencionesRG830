@@ -28,7 +28,7 @@
 
 <div class="banda">
     <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-users" /></svg>
-    <span>Agente de retención: <b>@Model.ClienteRazonSocial</b>@if (clienteCuit is not null){<text> · CUIT <span class="cuit">@clienteCuit</span></text>}</span>
+    <span>Agente de retención: <b>@Model.ClienteRazonSocial</b>@if (clienteCuit is not null){<text> · CUIT <span class="cuit">@FormatoCuit.ParaMostrar(clienteCuit)</span></text>}</span>
 </div>
 
 <div class="dos-columnas">
