@@ -207,8 +207,7 @@ es-AR, `87190.09` se interpreta como `8719009`: el punto se lee como separador d
 - **Los importes de Nueva operación son `type="text" inputmode="decimal"`**, no
   `type="number"`: con `type="number"` el navegador descarta lo que no entiende
   ("5.000.000") y manda el campo vacío, así que el mensaje que enseña nunca llegaba a
-  verse. Los del Simulador todavía son `type="number"`: ahí el servidor rechaza igual, pero
-  el operador ve lo que diga el navegador.
+  verse. Los del Simulador también, desde su migración al diseño nuevo (noviembre de 2026).
 - **Los espacios de los extremos se sacan antes de leer** (octubre de 2026): espacio común,
   tabulación y espacio duro (NBSP). Antes `LectorImporte` rechazaba " 12" porque "el
   navegador no manda espacios en un campo numérico", que era cierto con `type="number"` y

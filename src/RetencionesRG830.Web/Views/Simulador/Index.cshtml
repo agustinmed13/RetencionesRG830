@@ -1,110 +1,147 @@
 @model RetencionesRG830.Web.Models.SimuladorViewModel
+@using RetencionesRG830.Domain.Enums
+@using RetencionesRG830.Web.Infraestructura
+@*
+    Simulador. No tiene pantalla propia en docs/prototipo-interfaz.html: se arma con
+    los componentes de "Nueva operación" (formulario a la izquierda, panel de cálculo
+    a la derecha) y se compara contra esa pantalla.
 
+    Es una calculadora: no guarda nada. El cálculo lo hace el servidor con el motor
+    (SimuladorController), acá sólo se muestra. El desglose es el mismo parcial que
+    usan Nueva operación y la confirmación (_DesgloseCalculo): los siete renglones de
+    la hoja Cálculo de la planilla, en su orden, escritos en un solo lugar.
+*@
 @{
-    ViewData["Title"] = "Simulador de retención";
+    ViewData["Title"] = "Simulador";
 }
 
-<h1>Simulador de retención</h1>
-<p class="text-muted">
-    Reproduce el cálculo de la hoja "Cálculo" de la planilla, usando los
-    regímenes cargados en la base de datos.
-</p>
+<div class="cabecera-pagina">
+    <h1>Simulador de retención</h1>
+</div>
 
-<div class="row">
-    <div class="col-md-5">
-        <form asp-action="Index" method="post">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<p class="subtitulo-pagina">Reproduce el cálculo de la hoja Cálculo de la planilla con los regímenes cargados. No registra ninguna operación.</p>
 
-            @* Una opción por código. La versión la resuelve el servidor con la fecha
-               de retención (regla 9), igual que en Nueva operación. *@
-            <div class="mb-3">
-                <label asp-for="CodigoRegimen" class="form-label"></label>
-                <select asp-for="CodigoRegimen" asp-items="ViewBag.Regimenes" class="form-select">
-                    <option value="">-- Elegí un régimen --</option>
-                </select>
-                <span asp-validation-for="CodigoRegimen" class="text-danger"></span>
-            </div>
+<div class="dos-columnas">
+    @* data-enter-siguiente: Enter pasa al campo siguiente y no envía (ver site.js),
+       igual que en el resto de los formularios. *@
+    <form asp-action="Index" method="post" class="tarjeta" data-enter-siguiente>
+        <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
 
-            <div class="mb-3">
-                <label asp-for="FechaRetencion" class="form-label"></label>
-                <input asp-for="FechaRetencion" type="date" class="form-control" />
-                <div class="form-text">Se calcula con los valores del régimen vigentes a esta fecha.</div>
-                <span asp-validation-for="FechaRetencion" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3 form-check">
-                <input asp-for="InscriptoEnGanancias" class="form-check-input" />
-                <label asp-for="InscriptoEnGanancias" class="form-check-label"></label>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="TipoPersona" class="form-label"></label>
-                <select asp-for="TipoPersona"
-                        asp-items="Html.GetEnumSelectList<RetencionesRG830.Domain.Enums.TipoPersona>()"
-                        class="form-select"></select>
-                <div class="form-text">Sólo influye si el proveedor NO está inscripto.</div>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="NetoGravadoAcumuladoMensual" class="form-label"></label>
-                <input asp-for="NetoGravadoAcumuladoMensual" type="number" step="0.01" class="form-control" />
-                <div class="form-text">Incluye la operación que se está cargando ahora.</div>
-                <span asp-validation-for="NetoGravadoAcumuladoMensual" class="text-danger"></span>
-            </div>
-
-            <div class="mb-3">
-                <label asp-for="RetencionesAcumuladasDelMes" class="form-label"></label>
-                <input asp-for="RetencionesAcumuladasDelMes" type="number" step="0.01" class="form-control" />
-                <div class="form-text">Lo que ya se le retuvo antes en el mismo mes.</div>
-                <span asp-validation-for="RetencionesAcumuladasDelMes" class="text-danger"></span>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Calcular</button>
-        </form>
-    </div>
-
-    <div class="col-md-7">
-        @if (Model.Resultado is not null)
-        {
-            <div class="card">
-                @* Con qué valores se calculó: la versión del régimen vigente a la fecha. *@
-                <div class="card-header">
-                    Resultado del cálculo<br />
-                    <small>Régimen @Model.CodigoRegimen · valores vigentes desde @Model.RegimenVigenciaDesde?.ToString("dd/MM/yyyy") · fecha de retención @Model.FechaRetencion.ToString("dd/MM/yyyy")</small>
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-doc" /></svg>Régimen y fecha
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="CodigoRegimen">Régimen <span class="requerido">*</span></label>
+                    @* Una opción por código. La versión la resuelve el servidor con la
+                       fecha de retención (regla 9), igual que en Nueva operación. *@
+                    <select asp-for="CodigoRegimen" asp-items="ViewBag.Regimenes" class="campo-control">
+                        <option value="">Elegí un régimen</option>
+                    </select>
+                    <span asp-validation-for="CodigoRegimen" class="campo-error"></span>
                 </div>
-                <table class="table mb-0">
-                    <tbody>
-                        <tr>
-                            <td>Mínimo no sujeto a retención</td>
-                            <td class="text-end">@Model.Resultado.MinimoNoSujetoARetencion.ToString("C2")</td>
-                        </tr>
-                        <tr>
-                            <td>Tasa aplicable</td>
-                            <td class="text-end">
-                                @(Model.Resultado.TasaAplicada == 0
-                                    ? "s/escala"
-                                    : Model.Resultado.TasaAplicada.ToString("P2"))
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Neto sujeto a retención</td>
-                            <td class="text-end">@Model.Resultado.NetoSujetoARetencion.ToString("C2")</td>
-                        </tr>
-                        <tr>
-                            <td>Retención acumulada determinada</td>
-                            <td class="text-end">@Model.Resultado.RetencionAcumuladaDeterminada.ToString("C2")</td>
-                        </tr>
-                        <tr class="table-primary fw-bold">
-                            <td>Retención a practicar</td>
-                            <td class="text-end">@Model.Resultado.RetencionAPracticar.ToString("C2")</td>
-                        </tr>
-                    </tbody>
-                </table>
-                @if (!string.IsNullOrEmpty(Model.Resultado.Observacion))
-                {
-                    <div class="card-footer text-muted">@Model.Resultado.Observacion</div>
-                }
+                <div class="campo">
+                    <label for="FechaRetencion">Fecha de retención <span class="requerido">*</span></label>
+                    <input asp-for="FechaRetencion" type="date" class="campo-control" />
+                    <div class="campo-ayuda">Se calcula con los valores del régimen vigentes a esta fecha.</div>
+                    <span asp-validation-for="FechaRetencion" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-truck" /></svg>Situación del proveedor ante Ganancias
+            </h2>
+            <div class="rejilla rejilla-2">
+                @* Desplegable y no casilla, como en el formulario de Proveedores: es el
+                   dato que decide si se aplica la escala o la alícuota fija (regla 4), y
+                   "No inscripto" tiene que quedar escrito, no ser una casilla vacía que
+                   se pasa por alto. *@
+                <div class="campo">
+                    <label for="InscriptoEnGanancias">Inscripción en Ganancias</label>
+                    <select asp-for="InscriptoEnGanancias" class="campo-control">
+                        <option value="true">Inscripto</option>
+                        <option value="false">No inscripto</option>
+                    </select>
+                </div>
+                @* Los textos salen de FormatoProveedor, no del enum: GetEnumSelectList
+                   mostraba "HumanaYSucesionIndivisa" tal cual. *@
+                <div class="campo">
+                    <label for="TipoPersona">Tipo de persona</label>
+                    <select asp-for="TipoPersona" class="campo-control">
+                        @foreach (var tipo in Enum.GetValues<TipoPersona>())
+                        {
+                            <option value="@tipo">@FormatoProveedor.TipoPersonaParaElegir(tipo)</option>
+                        }
+                    </select>
+                    <div class="campo-ayuda">Sólo se usa cuando el proveedor no está inscripto.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Importes del mes
+            </h2>
+            @* Campos de texto y no type="number", igual que en Nueva operación: con
+               type="number" el navegador descarta lo que no entiende ("5.000.000") y
+               manda el campo vacío, y el mensaje que enseña cómo escribir el importe
+               nunca llegaba a verse. Lo interpreta LectorImporte en el servidor. *@
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="NetoGravadoAcumuladoMensual">Neto gravado acumulado del mes <span class="requerido">*</span></label>
+                    <input asp-for="NetoGravadoAcumuladoMensual" type="text" inputmode="decimal" autocomplete="off" class="campo-control importe" />
+                    <div class="campo-ayuda">Incluye la operación que se está simulando. Sin separador de miles, hasta dos decimales: 50000 o 50000,75.</div>
+                    <span asp-validation-for="NetoGravadoAcumuladoMensual" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="RetencionesAcumuladasDelMes">Retenciones ya practicadas en el mes <span class="requerido">*</span></label>
+                    <input asp-for="RetencionesAcumuladasDelMes" type="text" inputmode="decimal" autocomplete="off" class="campo-control importe" />
+                    <div class="campo-ayuda">Lo que ya se le retuvo antes en el mismo mes, por el mismo régimen.</div>
+                    <span asp-validation-for="RetencionesAcumuladasDelMes" class="campo-error"></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="pie-formulario">
+            <button type="submit" class="boton boton-primario">Calcular</button>
+        </div>
+    </form>
+
+    <aside class="tarjeta panel-calculo" aria-label="Cálculo de la retención">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Cálculo de la retención
+        </h2>
+
+        @if (Model.Resultado is null)
+        {
+            <div class="nota-panel panel-calculo-espera">
+                <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+                <span>Completá el régimen, la fecha, la situación del proveedor y los importes, y apretá Calcular.</span>
             </div>
         }
-    </div>
+        else
+        {
+            ViewData["Variante"] = "panel";
+            <partial name="_DesgloseCalculo" model="Model.Resultado" />
+
+            @* Con qué datos se calculó: la versión del régimen vigente a la fecha y la
+               situación del proveedor que se simuló. *@
+            <div class="nota-panel">
+                <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+                <span>
+                    Régimen @Model.CodigoRegimen, valores vigentes desde @Model.RegimenVigenciaDesde?.ToString("dd/MM/yyyy"),
+                    fecha de retención @Model.FechaRetencion.ToString("dd/MM/yyyy").
+                    Proveedor @(Model.InscriptoEnGanancias ? "inscripto" : "no inscripto")@if (!Model.InscriptoEnGanancias){<text> · @FormatoProveedor.TipoPersonaParaElegir(Model.TipoPersona)</text>}.
+                </span>
+            </div>
+        }
+
+        <div class="nota-panel">
+            <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+            <span>Es sólo una simulación: no se registra ninguna operación ni se emite certificado.</span>
+        </div>
+    </aside>
 </div>

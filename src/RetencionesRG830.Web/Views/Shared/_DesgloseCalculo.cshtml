@@ -10,7 +10,9 @@
     Todos los valores salen tal cual del resultado del motor (ResultadoCalculoRetencion):
     acá no se hace ninguna cuenta, sólo se les da formato.
 
-    Lo usan el panel de "Nueva operación" y la pantalla de confirmación. ViewData["Variante"]
+    Lo usan el panel de "Nueva operación", la pantalla de confirmación y el Simulador.
+    Está en Shared porque lo usan dos controladores (Operaciones y Simulador): ASP.NET
+    busca un parcial en la carpeta del controlador y en Shared. ViewData["Variante"]
     elige el aspecto: "panel" (renglones que restan en rojo y el total en un recuadro verde)
     o "confirmacion" (el total como último renglón destacado), como en el prototipo.
 *@

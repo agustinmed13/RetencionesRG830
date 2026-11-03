@@ -60,12 +60,15 @@ public class SimuladorController : Controller
             }
             else
             {
+                // Los importes son decimal?, pero acá no pueden ser null: ModelState es
+                // válido, así que [Required] ya los controló. .Value y no "?? 0": si algún
+                // día llegara un null, tiene que fallar, no calcular con un cero inventado.
                 modelo.Resultado = ServicioCalculoRetencion.Calcular(
                     regimen,
                     modelo.InscriptoEnGanancias,
                     modelo.TipoPersona,
-                    modelo.NetoGravadoAcumuladoMensual,
-                    modelo.RetencionesAcumuladasDelMes);
+                    modelo.NetoGravadoAcumuladoMensual!.Value,
+                    modelo.RetencionesAcumuladasDelMes!.Value);
                 modelo.RegimenVigenciaDesde = regimen.VigenciaDesde;
             }
         }
