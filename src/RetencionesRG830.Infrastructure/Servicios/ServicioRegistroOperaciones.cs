@@ -230,7 +230,51 @@ public class ServicioRegistroOperaciones
                      && o.FechaRetencion >= desde
                      && o.FechaRetencion <= hasta)
             .ToListAsync();
-        /// <summary>
+
+    /// <summary>
+    /// Los clientes para los que se puede generar el archivo de SICORE: TODOS, también
+    /// los dados de baja. Primero los activos, que son los habituales, y después los de
+    /// baja, cada grupo por razón social.
+    ///
+    /// Por la regla 11: el estudio da de baja a un cliente el día 1 de un mes, después
+    /// de cerrar el anterior, y el SICORE de ese mes anterior se presenta más tarde, con
+    /// el cliente ya de baja. Generar el archivo no carga nada nuevo: informa lo que ya
+    /// se retuvo. Es distinto de Nueva operación, donde sólo van los activos porque ahí
+    /// sí se registra algo (RegistrarAsync rechaza a un cliente de baja).
+    /// </summary>
+    public Task<List<Cliente>> ClientesParaSicoreAsync() =>
+        _db.Clientes
+            .OrderBy(c => c.Activo ? 0 : 1)
+            .ThenBy(c => c.RazonSocial)
+            .ToListAsync();
+
+    /// <summary>
+    /// Cuántas operaciones del período entran en el archivo de SICORE y cuántas
+    /// quedan afuera, y por qué. Lo muestra la pantalla de SICORE antes de descargar.
+    ///
+    /// Las que entran se cuentan con OperacionesParaSicoreAsync, el mismo método que
+    /// arma el archivo, y no con una consulta propia: si el criterio de qué se informa
+    /// cambia, el número que ve el operador cambia con él. Trae las entidades sólo
+    /// para contarlas, lo que con el volumen esperado (decenas por cliente y período)
+    /// no pesa. Las anuladas se cuentan todas, tengan o no certificado: para el
+    /// operador son "anuladas" (así figuran en el listado), no "sin certificado".
+    /// </summary>
+    public async Task<ResumenPeriodoSicore> ResumenPeriodoSicoreAsync(int clienteId, DateOnly desde, DateOnly hasta)
+    {
+        var informadas = (await OperacionesParaSicoreAsync(clienteId, desde, hasta)).Count;
+
+        var delPeriodo = _db.Operaciones
+            .Where(o => o.ClienteId == clienteId
+                     && o.FechaRetencion >= desde
+                     && o.FechaRetencion <= hasta);
+
+        var anuladas = await delPeriodo.CountAsync(o => o.Anulada);
+        var sinCertificado = await delPeriodo.CountAsync(o => !o.Anulada && o.NumeroCertificado == null);
+
+        return new ResumenPeriodoSicore(informadas, anuladas, sinCertificado);
+    }
+
+    /// <summary>
     /// Anula una operación. No la borra: queda registrada con el motivo,
     /// la fecha y quién la anuló, pero deja de sumar al acumulado del mes
     /// y no sale en el archivo de SICORE.

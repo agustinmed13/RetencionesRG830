@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 222 tests: 214 verdes y 8 omitidos (ver Tests)
+dotnet test                                      # 224 tests: 216 verdes y 8 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -129,6 +129,11 @@ código. Mientras una figure como "no implementada", el sistema la viola.
     `OperacionesController.ValidarClienteAsync` lo controla antes con un mensaje amable en
     Create, Simular, Revisar, Corregir y Confirmar. Ni el listado de Clientes ni el de
     Operaciones ofrecen "Nueva operación" para un cliente de baja.
+    **El SICORE, en cambio, sí lista a los clientes de baja** (noviembre de 2026), marcados
+    "(dado de baja)": el mes anterior a la baja se presenta después de la baja, y generar
+    el archivo no registra nada nuevo. La lista sale de
+    `ServicioRegistroOperaciones.ClientesParaSicoreAsync` (test
+    `Un_cliente_dado_de_baja_sigue_disponible_para_el_SICORE_del_mes_anterior`).
 
 12. **Una factura pagada en cuotas genera varios certificados, y en ese caso se informa la
     orden de pago, no la factura.** La retención se practica al pagar, no al facturar. **No
@@ -256,7 +261,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-222 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+224 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -275,11 +280,11 @@ Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de 
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 214 verdes y 8 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  recorta nada. Da 216 verdes y 8 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
   como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server y los 5 de
   `MigracionNormalizaCuitTests`, que prueban el SQL de esa migración.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 222
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 224
   verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
   bien, y entre 40 segundos y 1 minuto con LocalDB (medido en octubre de 2026). Si tarda
   minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el

@@ -385,4 +385,78 @@ public class ServicioRegistroOperacionesTests : IDisposable
         Assert.NotNull(unica.Proveedor);
         Assert.NotNull(unica.Regimen);
     }
+
+    /// <summary>
+    /// Regla 11: el estudio da de baja a un cliente el día 1, después de cerrar el mes
+    /// anterior, y presenta el SICORE de ese mes más tarde. El cliente de baja tiene
+    /// que seguir en la lista de SICORE y su archivo tiene que salir con las
+    /// retenciones del período anterior a la baja. Antes la pantalla listaba sólo los
+    /// activos y ese archivo no se podía generar.
+    /// </summary>
+    [Fact]
+    public async Task Un_cliente_dado_de_baja_sigue_disponible_para_el_SICORE_del_mes_anterior()
+    {
+        // Septiembre: una retención con certificado.
+        var deSeptiembre = await _servicio.RegistrarAsync(
+            NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 1));
+        Assert.NotNull(deSeptiembre.NumeroCertificado);
+
+        // Otro cliente activo, para ver el orden de la lista.
+        _db.Clientes.Add(new Cliente { Cuit = "30-71845236-4", RazonSocial = "Zeta Activa S.A." });
+
+        // El 1 de octubre el estudio da de baja al cliente (ClientesController.CambiarActivo).
+        var cliente = (await _db.Clientes.FindAsync(_clienteId))!;
+        cliente.Activo = false;
+        await _db.SaveChangesAsync();
+
+        var clientes = await _servicio.ClientesParaSicoreAsync();
+
+        // Sigue en la lista, de baja, y después de los activos.
+        var deBaja = Assert.Single(clientes, c => c.Id == _clienteId);
+        Assert.False(deBaja.Activo);
+        Assert.Equal(new[] { "Zeta Activa S.A.", "Metalúrgica del Valle S.A." },
+            clientes.Select(c => c.RazonSocial));
+
+        // Y su archivo de septiembre trae la retención.
+        var informadas = await _servicio.OperacionesParaSicoreAsync(
+            _clienteId, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+        Assert.Equal(deSeptiembre.Id, Assert.Single(informadas).Id);
+    }
+
+    /// <summary>
+    /// El resumen que muestra la pantalla de SICORE antes de descargar. Cada
+    /// operación del período cae en una sola de las tres cantidades, y una anulada
+    /// cuenta como anulada tenga o no certificado. Las de otro mes no cuentan.
+    /// </summary>
+    [Fact]
+    public async Task El_resumen_de_SICORE_cuenta_las_informadas_y_las_que_quedan_afuera()
+    {
+        // Base $ 100.000: no llega al monto no sujeto. Sin certificado; después se anula.
+        var anuladaSinCertificado = await _servicio.RegistrarAsync(
+            NuevaOperacion(100000m, new DateOnly(2026, 9, 2), 1));
+        // Base $ 400.000: retiene $ 3.520. Con certificado: es la que se informa.
+        var informada = await _servicio.RegistrarAsync(
+            NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 2));
+        // Base $ 405.000: faltan retener $ 100, debajo del mínimo de $ 240.
+        var sinCertificado = await _servicio.RegistrarAsync(
+            NuevaOperacion(5000m, new DateOnly(2026, 9, 10), 3));
+        // Base $ 705.000: retiene $ 6.100. Con certificado; después se anula.
+        var anuladaConCertificado = await _servicio.RegistrarAsync(
+            NuevaOperacion(300000m, new DateOnly(2026, 9, 20), 4));
+        await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 10, 2), 5));
+
+        await _servicio.AnularAsync(anuladaSinCertificado.Id, "Comprobante equivocado", usuarioId: 1);
+        await _servicio.AnularAsync(anuladaConCertificado.Id, "Importe mal cargado", usuarioId: 1);
+
+        // Que el escenario sea el que dicen los comentarios.
+        Assert.Null(anuladaSinCertificado.NumeroCertificado);
+        Assert.NotNull(informada.NumeroCertificado);
+        Assert.Null(sinCertificado.NumeroCertificado);
+        Assert.NotNull(anuladaConCertificado.NumeroCertificado);
+
+        var resumen = await _servicio.ResumenPeriodoSicoreAsync(
+            _clienteId, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30));
+
+        Assert.Equal(new ResumenPeriodoSicore(Informadas: 1, Anuladas: 2, SinCertificado: 1), resumen);
+    }
 }

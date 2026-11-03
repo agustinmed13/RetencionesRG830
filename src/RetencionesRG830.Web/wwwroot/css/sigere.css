@@ -1170,6 +1170,12 @@ select.campo-control {
     margin-top: 14px;
 }
 
+/* La misma nota dentro de una sección de formulario (el resumen de SICORE): la
+   sección ya tiene su margen, así que la nota va a lo ancho y separada de arriba. */
+.nota-panel-seccion {
+    margin: 14px 0 0;
+}
+
 /* Texto corrido dentro de un panel lateral ("Qué pasa al confirmar"). */
 .panel-texto {
     padding: 12px 17px 4px;

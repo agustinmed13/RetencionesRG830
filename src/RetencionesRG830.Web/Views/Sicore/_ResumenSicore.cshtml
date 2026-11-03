@@ -1,0 +1,56 @@
+@model RetencionesRG830.Web.Models.SicoreViewModel
+@*
+    La línea antes del botón de descarga: cuántas operaciones entran en el archivo y
+    cuántas quedan afuera. Se dibuja con la página y después la devuelve la acción
+    Resumen cada vez que cambia el cliente o el período (wwwroot/js/sicore.js).
+
+    Los números los cuenta el servidor (ServicioRegistroOperaciones.ResumenPeriodoSicoreAsync,
+    con test); acá sólo se escriben. Las que entran se cuentan con el mismo método que
+    arma el archivo, así que la línea no puede prometer un contenido distinto.
+*@
+@{
+    var resumen = Model.Resumen;
+
+    // "1 operación", "3 operaciones".
+    string Cantidad(int n, string singular, string plural) => $"{n} {(n == 1 ? singular : plural)}";
+
+    // Sólo se nombran las causas que tienen alguna operación.
+    var afuera = new List<string>();
+    if (resumen is not null)
+    {
+        if (resumen.Anuladas > 0)
+            afuera.Add(Cantidad(resumen.Anuladas, "anulada", "anuladas"));
+        if (resumen.SinCertificado > 0)
+            afuera.Add(Cantidad(resumen.SinCertificado, "sin certificado (no alcanzó el mínimo)", "sin certificado (no alcanzaron el mínimo)"));
+    }
+}
+
+@if (resumen is null)
+{
+    @* Falta un dato o hay un error: no se muestra un número calculado con datos que
+       no valen. Los mensajes de cada campo salen al descargar. *@
+    <div class="nota-panel nota-panel-seccion">
+        <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-info" /></svg>
+        <span>Elegí el cliente y un período válido para ver cuántas operaciones va a contener el archivo.</span>
+    </div>
+}
+else
+{
+    <div class="nota-panel nota-panel-seccion @(resumen.Informadas == 0 ? "nota-panel-alerta" : "")">
+        <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-@(resumen.Informadas == 0 ? "alert" : "info")" /></svg>
+        <span>
+            @if (resumen.Informadas == 0)
+            {
+                <text>No hay retenciones para informar en este período.</text>
+            }
+            else
+            {
+                <text>Entran en el archivo <b>@Cantidad(resumen.Informadas, "operación", "operaciones")</b>.</text>
+            }
+            @if (afuera.Count > 0)
+            {
+                <text> Quedan afuera @string.Join(" y ", afuera).</text>
+            }
+        </span>
+    </div>
+}

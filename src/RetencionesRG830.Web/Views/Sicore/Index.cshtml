@@ -1,41 +1,89 @@
+@model RetencionesRG830.Web.Models.SicoreViewModel
+@*
+    Archivo para SICORE. No tiene pantalla propia en docs/prototipo-interfaz.html: es
+    un formulario, así que se arma con los componentes de "Nueva operación" (tarjeta
+    con secciones y panel informativo al costado) y se compara contra esa pantalla.
+
+    El archivo lo arma GeneradorArchivoSicore, que esta pantalla no toca. Acá se elige
+    el cliente y el período, y antes del botón se dice qué va a contener el archivo
+    (_ResumenSicore). La validación del período la hace el servidor
+    (SicoreController.ValidarAsync), no el navegador.
+*@
 @{
     ViewData["Title"] = "Archivo para SICORE";
 }
 
-<h1>Archivo para SICORE</h1>
-<p class="text-muted">
-    Genera el archivo de texto para importar en SICORE, con las retenciones
-    practicadas en el rango de fechas elegido.
-</p>
+<div class="cabecera-pagina">
+    <h1>Archivo para SICORE</h1>
+</div>
 
-@if (TempData["Mensaje"] != null)
-{
-    <div class="alert alert-warning">@TempData["Mensaje"]</div>
+<p class="subtitulo-pagina">Genera el archivo de texto para importar en SICORE con las retenciones practicadas en el período elegido.</p>
+
+<div class="dos-columnas">
+    @* data-enter-siguiente: Enter pasa al campo siguiente y no envía (ver site.js).
+       data-resumen-url: adonde sicore.js pide la línea de resumen. *@
+    <form asp-action="Descargar" method="post" class="tarjeta" id="form-sicore"
+          data-enter-siguiente data-resumen-url="@Url.Action("Resumen")">
+        <div asp-validation-summary="ModelOnly" class="aviso aviso-error tarjeta-aviso"></div>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-users" /></svg>Agente de retención
+            </h2>
+            <div class="campo">
+                <label for="ClienteId">Cliente <span class="requerido">*</span></label>
+                <select asp-for="ClienteId" asp-items="ViewBag.Clientes" class="campo-control">
+                    <option value="">Elegí un cliente</option>
+                </select>
+                @* Todos los clientes, también los de baja (regla 11). La lista la arma
+                   ServicioRegistroOperaciones.ClientesParaSicoreAsync. *@
+                <div class="campo-ayuda">Incluye los clientes dados de baja: el último mes se presenta después de la baja.</div>
+                <span asp-validation-for="ClienteId" class="campo-error"></span>
+            </div>
+        </section>
+
+        <section class="tarjeta-seccion">
+            <h2 class="tarjeta-seccion-titulo">
+                <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-doc" /></svg>Período
+            </h2>
+            <div class="rejilla rejilla-2">
+                <div class="campo">
+                    <label for="Desde">Desde <span class="requerido">*</span></label>
+                    <input asp-for="Desde" type="date" class="campo-control" />
+                    <span asp-validation-for="Desde" class="campo-error"></span>
+                </div>
+                <div class="campo">
+                    <label for="Hasta">Hasta <span class="requerido">*</span></label>
+                    <input asp-for="Hasta" type="date" class="campo-control" />
+                    <span asp-validation-for="Hasta" class="campo-error"></span>
+                </div>
+            </div>
+            <div class="campo-ayuda">Las dos fechas se incluyen. Se compara con la fecha de la retención, no con la del comprobante.</div>
+
+            @* Qué va a contener el archivo. Lo cuenta el servidor y sicore.js lo
+               actualiza al cambiar un dato. aria-live: el lector de pantalla lo anuncia. *@
+            <div id="resumen-sicore" aria-live="polite">
+                <partial name="_ResumenSicore" model="Model" />
+            </div>
+        </section>
+
+        <div class="pie-formulario">
+            <button type="submit" class="boton boton-primario">Descargar archivo</button>
+        </div>
+    </form>
+
+    <aside class="tarjeta panel-calculo" aria-label="Qué contiene el archivo">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué contiene el archivo
+        </h2>
+        <div class="panel-texto">
+            <p>Un renglón por cada <b>retención con certificado</b> del cliente, con fecha de retención dentro del período.</p>
+            <p>Quedan afuera las operaciones <b>anuladas</b> y las que <b>no emitieron certificado</b> porque no alcanzaron el mínimo de retención.</p>
+            <p>Para la presentación quincenal, del 1 al 15 o del 16 al fin de mes.</p>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/js/sicore.js" asp-append-version="true"></script>
 }
-
-<form asp-action="Descargar" method="post" style="max-width: 520px">
-    <div class="mb-3">
-        <label class="form-label">Cliente (agente de retención)</label>
-        <select name="clienteId" asp-items="ViewBag.Clientes" class="form-select" required>
-            <option value="">-- Elegí un cliente --</option>
-        </select>
-    </div>
-
-    <div class="row">
-        <div class="col-6 mb-3">
-            <label class="form-label">Desde</label>
-            <input type="date" name="desde" value="@ViewBag.Desde" class="form-control" required />
-        </div>
-        <div class="col-6 mb-3">
-            <label class="form-label">Hasta</label>
-            <input type="date" name="hasta" value="@ViewBag.Hasta" class="form-control" required />
-        </div>
-    </div>
-
-    <div class="form-text mb-3">
-        El rango se aplica sobre la fecha de la retención. Para la presentación
-        quincenal, por ejemplo, del 1 al 15 o del 16 al fin de mes.
-    </div>
-
-    <button type="submit" class="btn btn-primary">Descargar archivo</button>
-</form>
