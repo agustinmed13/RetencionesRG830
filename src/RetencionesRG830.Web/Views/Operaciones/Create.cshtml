@@ -1,5 +1,4 @@
 @model RetencionesRG830.Web.Models.OperacionViewModel
-@using RetencionesRG830.Web.Infraestructura
 @*
     Nueva operación. Referencia: pestaña "Nueva operación" de docs/prototipo-interfaz.html.
 
@@ -87,7 +86,7 @@
                 <div class="campo">
                     <label for="TipoComprobante">Tipo <span class="requerido">*</span></label>
                     <select asp-for="TipoComprobante" class="campo-control">
-                        @foreach (var (codigo, nombre) in FormatoComprobante.Tipos)
+                        @foreach (var (codigo, nombre, _) in FormatoComprobante.Tipos)
                         {
                             <option value="@codigo">@nombre</option>
                         }

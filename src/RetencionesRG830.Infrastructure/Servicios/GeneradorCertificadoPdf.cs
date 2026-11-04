@@ -50,7 +50,7 @@ public class GeneradorCertificadoPdf
 
                     col.Item().AlignRight().Column(c =>
                     {
-                        c.Item().Text($"Certificado N° {numeroCertificado}").Bold();
+                        c.Item().Text(TextoNumeroCertificado(numeroCertificado)).Bold();
                         c.Item().Text($"Fecha: {operacion.FechaRetencion:dd/MM/yyyy}");
                     });
 
@@ -75,7 +75,7 @@ public class GeneradorCertificadoPdf
                         ("IMPUESTO:", "Impuesto a las Ganancias"),
                         ("RÉGIMEN:", regimen.Descripcion),
                         ("CÓDIGO DE RÉGIMEN:", regimen.Codigo.ToString()),
-                        ("COMPROBANTE:", $"{DescribirComprobante(operacion.TipoComprobante)} " +
+                        ("COMPROBANTE:", $"{FormatoComprobante.NombreTipo(operacion.TipoComprobante)} " +
                                          $"{operacion.PuntoVenta:D5}-{operacion.NumeroComprobante:D8}"),
                         ("FECHA DEL COMPROBANTE:", operacion.FechaComprobante.ToString("dd/MM/yyyy")),
                         ("MONTO DEL COMPROBANTE:", operacion.ImporteComprobante.ToString("C2")),
@@ -108,13 +108,11 @@ public class GeneradorCertificadoPdf
         }
     }
 
-    /// <summary>Traduce el código AFIP del comprobante a texto legible.</summary>
-    private static string DescribirComprobante(int tipo) => tipo switch
-    {
-        1 => "Factura",
-        2 => "Nota de débito",
-        3 => "Nota de crédito",
-        4 => "Recibo",
-        _ => $"Comprobante tipo {tipo}"
-    };
+    /// <summary>
+    /// El número tal como se imprime: con las mismas ocho cifras que las pantallas y
+    /// que el nombre del archivo. Es público para poder probarlo: el texto de un PDF
+    /// armado no se puede leer desde los tests.
+    /// </summary>
+    public static string TextoNumeroCertificado(int numero) =>
+        $"Certificado N° {FormatoComprobante.NumeroCertificado(numero)}";
 }

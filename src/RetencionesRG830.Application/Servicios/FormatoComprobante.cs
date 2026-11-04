@@ -1,45 +1,40 @@
 using RetencionesRG830.Domain.Entidades;
 
-namespace RetencionesRG830.Web.Infraestructura;
+namespace RetencionesRG830.Application.Servicios;
 
 /// <summary>
-/// Formatos de presentación de los datos de una operación en las pantallas.
+/// Cómo se MUESTRAN los datos de una operación: tipo de comprobante, número de
+/// certificado y los avisos que los nombran. Es sólo presentación: no decide nada
+/// del cálculo. El archivo de SICORE no la usa, porque lleva el código numérico del
+/// comprobante y el certificado con 14 dígitos, como pide la especificación.
 ///
-/// Está en Web y no en Domain porque es sólo presentación: cómo se ve un
-/// comprobante en una tabla no es una regla del negocio.
+/// Está en Application y no en la Web por el mismo motivo que FormatoCuit: el
+/// certificado lo arma Infrastructure, que no ve la Web. Antes el PDF tenía su propia
+/// copia de los tipos y escribía "Certificado N° 1" mientras las pantallas decían
+/// 00000001: el contador leía un número en el papel y buscaba otro en el sistema.
 /// </summary>
 public static class FormatoComprobante
 {
     /// <summary>
-    /// Tipos de comprobante que ofrece el formulario de carga, con su código
-    /// AFIP. Son los mismos que traduce GeneradorCertificadoPdf.DescribirComprobante:
-    /// si se agrega uno, hay que agregarlo en los dos lugares.
+    /// Los tipos de comprobante, con su código AFIP. Es la única tabla: de acá salen
+    /// el formulario de carga, los nombres, las abreviaturas y el certificado PDF.
+    /// Los códigos son los de la hoja Tablas del Excel.
     /// </summary>
-    public static readonly IReadOnlyList<(int Codigo, string Nombre)> Tipos = new[]
+    public static readonly IReadOnlyList<(int Codigo, string Nombre, string Abreviatura)> Tipos = new[]
     {
-        (1, "Factura"),
-        (2, "Nota de débito"),
-        (3, "Nota de crédito"),
-        (4, "Recibo")
+        (1, "Factura", "FC"),
+        (2, "Nota de débito", "ND"),
+        (3, "Nota de crédito", "NC"),
+        (4, "Recibo", "RE")
     };
 
     /// <summary>Nombre del tipo de comprobante: "Factura", "Recibo"...</summary>
     public static string NombreTipo(int tipo) =>
         Tipos.Where(t => t.Codigo == tipo).Select(t => t.Nombre).FirstOrDefault() ?? $"Comprobante tipo {tipo}";
 
-    /// <summary>
-    /// Abreviatura del tipo de comprobante, para las columnas de las tablas.
-    /// Los códigos son los de la hoja Tablas del Excel, los mismos que
-    /// traduce a texto completo GeneradorCertificadoPdf.DescribirComprobante.
-    /// </summary>
-    public static string Abreviatura(int tipo) => tipo switch
-    {
-        1 => "FC",
-        2 => "ND",
-        3 => "NC",
-        4 => "RE",
-        _ => $"Tipo {tipo}"
-    };
+    /// <summary>Abreviatura del tipo de comprobante, para las columnas de las tablas.</summary>
+    public static string Abreviatura(int tipo) =>
+        Tipos.Where(t => t.Codigo == tipo).Select(t => t.Abreviatura).FirstOrDefault() ?? $"Tipo {tipo}";
 
     /// <summary>
     /// Comprobante completo: "FC 00003-00012847". Punto de venta de cinco

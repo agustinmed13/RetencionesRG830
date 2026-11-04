@@ -406,8 +406,8 @@ body.sigere {
 
 /* -------------------------------------------------------------------------
    7. Botones
-   Tres variantes: primario (la acción principal de la pantalla, una sola),
-   secundario (acciones alternativas) y neutro (volver, cancelar).
+   Cuatro variantes: primario (la acción principal de la pantalla, una sola),
+   secundario (acciones alternativas), neutro (volver, cancelar) y peligro (anular).
    ------------------------------------------------------------------------- */
 .boton {
     display: inline-flex;
@@ -456,6 +456,19 @@ body.sigere {
 .boton-neutro:hover:not(:disabled) {
     background-color: var(--color-fondo);
     color: var(--color-texto);
+}
+
+/* Acción que no tiene vuelta atrás y saca algo de circulación (Anular). Con
+   contorno y no lleno: no compite con la acción principal de la pantalla. */
+.boton-peligro {
+    background-color: var(--color-tarjeta);
+    border-color: var(--color-anulada-texto);
+    color: var(--color-anulada-texto);
+}
+
+.boton-peligro:hover:not(:disabled) {
+    background-color: var(--color-anulada-fondo);
+    color: var(--color-anulada-texto);
 }
 
 /* Botón grande: la acción irreversible de una pantalla (Confirmar). */
@@ -1257,6 +1270,21 @@ select.campo-control {
     font-size: 19px;
     font-weight: 800;
     color: var(--color-vigente-texto);
+}
+
+/* El total de una operación anulada: en verde parecería una retención vigente.
+   Tachado pero legible, porque el importe sigue siendo un dato de la operación. */
+.desglose .renglon-total-anulada {
+    background-color: var(--color-anulada-fondo);
+}
+
+.desglose .renglon-total-anulada .etiqueta,
+.desglose .renglon-total-anulada .valor {
+    color: var(--color-anulada-texto);
+}
+
+.desglose .renglon-total-anulada .valor {
+    text-decoration: line-through;
 }
 
 
