@@ -28,8 +28,10 @@ public class Operacion
     public Regimen? Regimen { get; set; }
 
     // --- Datos del comprobante que origina la retención ---
-    // TipoComprobante usa los mismos códigos AFIP que vimos en la hoja
-    // Tablas del Excel (1 = Factura, 2 = Recibo, etc.).
+    // TipoComprobante guarda el código de comprobante de SICORE: 1 = Factura,
+    // 2 = Recibo, 3 = Nota de crédito, 4 = Nota de débito, 5 = Otro comprobante,
+    // 6 = Orden de pago. El sistema ofrece hoy del 1 al 4 (ver
+    // FormatoComprobante.Tipos, y la fuente en CLAUDE.md, "Códigos de comprobante").
     public int TipoComprobante { get; set; }
     public int PuntoVenta { get; set; }
     public long NumeroComprobante { get; set; }

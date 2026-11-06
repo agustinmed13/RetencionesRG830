@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 233 tests: 225 verdes y 8 omitidos (ver Tests)
+dotnet test                                      # 242 tests: 232 verdes y 10 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -261,7 +261,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-233 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+242 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -280,13 +280,14 @@ Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de 
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 225 verdes y 8 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
-  como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server y los 5 de
-  `MigracionNormalizaCuitTests`, que prueban el SQL de esa migración.
+  recorta nada. Da 232 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server, los 5 de
+  `MigracionNormalizaCuitTests` y los 2 de `CodigosComprobanteGuardadosTests`, que prueban el
+  SQL de esas migraciones.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 233
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 242
   verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
-  bien, y entre 40 segundos y 1 minuto con LocalDB (medido en octubre de 2026). Si tarda
+  bien, y entre 40 segundos y 1 minuto y medio con LocalDB (medido en noviembre de 2026). Si tarda
   minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el
   18/10/2026 un SQL Server Express local tardó 4 minutos, con timeouts, también con el
   código del commit anterior; contra LocalDB, en la misma máquina, la suite pasó entera.
@@ -465,7 +466,8 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
 3. **La tabla completa de tipos de comprobante, con la orden de pago** (regla 12). La
    duplicación ya se resolvió (noviembre de 2026): los tipos viven en un solo lugar,
    `FormatoComprobante.Tipos` (Application), con código, nombre y abreviatura, y de ahí salen
-   las pantallas y el certificado PDF. Falta sólo ampliar esa tabla con la orden de pago. Ojo
+   las pantallas y el certificado PDF. Falta sólo ampliar esa tabla con la orden de pago
+   (código 06, ver "Códigos de comprobante"). Ojo
    con el SICORE: ver el pendiente de prioridad alta en "Archivo de SICORE".
 4. **Cargar la tabla completa de regímenes de la RG 830.** Hoy el seed trae sólo 78, 94 y
    116. Con datos reales del anexo, nunca inventados (regla 9).
@@ -679,6 +681,52 @@ rechazo que menciona el contador son otras. Falta que el contador confirme si es
 presentación fue aceptada sin observaciones. Si el campo tuviera que ir en ceros, cambian el
 generador y los cinco golden tests del SICORE.
 
+### Códigos de comprobante (posiciones 1-2)
+
+| Código | Comprobante | En el sistema |
+|---|---|---|
+| 01 | Factura | Sí |
+| 02 | Recibo | Sí |
+| 03 | Nota de crédito | Sí |
+| 04 | Nota de débito | Sí |
+| 05 | Otro comprobante | Existe, no se ofrece |
+| 06 | Orden de pago | Existe, no se ofrece (regla 12, tarea aparte) |
+
+**Fuente:** relevamiento del autor, noviembre de 2026, en tres fuentes coincidentes:
+
+| Fuente | Qué es | Versión / fecha |
+|---|---|---|
+| [Instructivo del aplicativo SI.CO.RE, AFIP](https://www.afip.gob.ar/aplicativos/oProgramasImpositivos/documentos/dit.sicore.AP_INS_sicore-50.pdf) | Documento oficial de AFIP. La tabla "Código de comprobante" está en la página 17. | Versión 50.0.0, 28/01/2014, aplicativo v8.0 r14 |
+| [Tablas del SICORE](https://www.planillasutiles.com.ar/p/tablas-sicore.html) (planillasutiles.com.ar) | Blog. No indica de dónde sacó la tabla. | Sin versión ni fecha |
+| [SICORE/CODIGOS](https://documentacion.conarpesa.com.ar/index.php?title=SICORE%2FCODIGOS) (wiki de Conarpesa) | Tabla de base de datos de un ERP, no un documento de AFIP. Lista sólo 01 a 09. | Revisión del 19/12/2024 |
+
+Ninguna de las tres es el documento "Formatos de Importación — Estándar Retenciones, Versión
+9.0" contra el que se validaron las posiciones, y la única oficial es un instructivo de 2014:
+**queda pendiente confirmar la tabla contra la hoja Tablas de la planilla del contador.** La
+tabla no está en la especificación de posiciones citada arriba, que valida dónde va cada
+campo, no los valores que admite. No son todos los códigos de SICORE: instructivos de AFIP
+nombran otros más altos para casos especiales (por ejemplo 12, 13 y 17).
+
+**El error que esto corrigió** (noviembre de 2026): desde la primera versión la tabla decía
+2 = Nota de débito y 4 = Recibo, invertidos. El comentario citaba la hoja Tablas del Excel,
+que no está en el repositorio, así que nadie podía contrastarlo; y los golden tests son todas
+facturas, así que ningún test miraba esos códigos. Todo recibo salía en SICORE con `04`.
+
+- **El código guardado es el dato.** Cambiar un código en `FormatoComprobante.Tipos` cambia
+  el significado de las operaciones ya registradas. Por eso la corrección llevó la migración
+  `CorrigeCodigosComprobante`, que intercambia 2 y 4 en una sola sentencia. El 1 y el 3 no
+  cambiaron.
+- **El seed pasa el código como número suelto:** la migración no lo corrige, porque en una
+  base nueva corre antes del seed. Se corrigió a mano, y lo controla
+  `CodigosComprobanteGuardadosTests.El_comprobante_del_seed_sigue_siendo_un_recibo`.
+- **`FormatoComprobanteTests` escribe la tabla oficial a mano**, sin leerla del código, y falla
+  si `Tipos` cambia. También falla si alguien agrega 05 o 06: es a propósito, porque la orden
+  de pago necesita antes el control de los 145 caracteres.
+- **Las comparaciones byte por byte del SICORE del seed anteriores a este cambio ya no
+  valen como referencia.** El archivo de septiembre difiere en el renglón del recibo de Paz:
+  posiciones 1-2, de `04` a `02`. Es el resultado correcto, no una rotura. Ningún test
+  automático compara ese archivo.
+
 ### Por qué AFIP rechaza los archivos
 
 Confirmado por el contador (consulta de octubre de 2026). Son dos causas:
@@ -731,6 +779,10 @@ tribunal académico.
   objeto con todo lo que venga en el POST, y así editar un proveedor lo mudaba de cliente
   (y reactivaba lo dado de baja), y un alta armada a mano podía crear una operación con
   importe y certificado inventados, sin pasar por el motor ni por la confirmación.
+- Al terminar cada tarea, además de responder en pantalla, escribir el mismo reporte en
+  `source/reporte.md`, al lado del repositorio y fuera de él (en la notebook,
+  `~/source/reporte.md`; en la PC, `C:\Users\Usuario\source\reporte.md`). Sobreescribirlo
+  cada vez, y decir la ruta completa al final.
 
 Se trabaja en dos máquinas sincronizadas por Git: `git pull` al empezar, `git push` al
 terminar.

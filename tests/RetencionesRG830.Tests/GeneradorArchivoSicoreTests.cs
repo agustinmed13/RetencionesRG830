@@ -1,4 +1,5 @@
 using System.Globalization;
+using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Infrastructure.Servicios;
 
@@ -84,6 +85,30 @@ public class GeneradorArchivoSicoreTests
 
         Assert.Equal(145, linea.Length);
         Assert.Equal(lineaEsperada, linea);
+    }
+
+    /// <summary>
+    /// Las líneas reales de arriba son todas facturas: los demás códigos no estaban
+    /// cubiertos, y por eso los recibos salieron con 04 sin que nada avisara. Busca
+    /// el tipo por su nombre, como lo elige el operador, para probar el camino entero
+    /// desde la tabla hasta las posiciones 1-2 del archivo.
+    /// </summary>
+    [Theory]
+    [InlineData("Factura", "01")]
+    [InlineData("Recibo", "02")]
+    [InlineData("Nota de crédito", "03")]
+    [InlineData("Nota de débito", "04")]
+    public void Cada_tipo_sale_con_su_codigo_oficial_en_las_posiciones_1_y_2(string nombre, string codigo)
+    {
+        var operacion = CrearOperacion(
+            "04/08/2026", 1, 2514, 501000.02m, 414049.59m,
+            "12/08/2026", 3800.99m, "20-31456789-8", 4);
+        operacion.TipoComprobante = FormatoComprobante.Tipos.Single(t => t.Nombre == nombre).Codigo;
+
+        var linea = new GeneradorArchivoSicore().GenerarLinea(operacion);
+
+        Assert.Equal(145, linea.Length);
+        Assert.Equal(codigo, linea[..2]);
     }
 
     /// <summary>

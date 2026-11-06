@@ -270,7 +270,7 @@ public static class DbInitializer
         {
             NuevaOperacion(agroinsumos, transportes, Vigente(94, new DateOnly(2026, 9, 10)), 1, 4, 561, new DateOnly(2026, 9, 10), 726_000m, 600_000m, estudio),
             NuevaOperacion(agroinsumos, ruiz, Vigente(78, new DateOnly(2026, 9, 15)), 1, 2, 3310, new DateOnly(2026, 9, 15), 484_000m, 400_000m, estudio),
-            NuevaOperacion(agroinsumos, paz, Vigente(94, new DateOnly(2026, 9, 18)), 4, 1, 45, new DateOnly(2026, 9, 18), 250_000m, 250_000m, estudio),
+            NuevaOperacion(agroinsumos, paz, Vigente(94, new DateOnly(2026, 9, 18)), 2, 1, 45, new DateOnly(2026, 9, 18), 250_000m, 250_000m, estudio),
             NuevaOperacion(agroinsumos, ruiz, Vigente(78, new DateOnly(2026, 9, 25)), 1, 2, 3327, new DateOnly(2026, 9, 25), 363_000m, 300_000m, estudio),
         };
         foreach (var operacion in operaciones)

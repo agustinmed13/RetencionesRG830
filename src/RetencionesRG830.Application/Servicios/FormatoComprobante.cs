@@ -16,16 +16,32 @@ namespace RetencionesRG830.Application.Servicios;
 public static class FormatoComprobante
 {
     /// <summary>
-    /// Los tipos de comprobante, con su código AFIP. Es la única tabla: de acá salen
-    /// el formulario de carga, los nombres, las abreviaturas y el certificado PDF.
-    /// Los códigos son los de la hoja Tablas del Excel.
+    /// Los tipos de comprobante que el sistema ofrece. Es la única tabla: de acá salen
+    /// el formulario de carga, los nombres, las abreviaturas y el certificado PDF. El
+    /// código es el que se guarda en la base y el que va a las posiciones 1-2 del
+    /// archivo de SICORE, así que no es un número interno: lo fija AFIP.
+    ///
+    /// Códigos de comprobante de SICORE:
+    ///   01 Factura
+    ///   02 Recibo
+    ///   03 Nota de crédito
+    ///   04 Nota de débito
+    ///   05 Otro comprobante   (existe, el sistema todavía no lo ofrece)
+    ///   06 Orden de pago      (existe, el sistema todavía no lo ofrece: regla 12)
+    ///
+    /// Fuente: relevamiento del autor, noviembre de 2026, en tres fuentes coincidentes,
+    /// una de ellas un instructivo de AFIP. El detalle está en CLAUDE.md, "Códigos de
+    /// comprobante". Hasta entonces este comentario citaba la hoja Tablas del Excel,
+    /// que no está en el repositorio, y la tabla tenía Recibo y Nota de débito
+    /// invertidos. Cambiar un código de acá cambia el significado de lo ya guardado:
+    /// necesita una migración de datos (ver CorrigeCodigosComprobante).
     /// </summary>
     public static readonly IReadOnlyList<(int Codigo, string Nombre, string Abreviatura)> Tipos = new[]
     {
         (1, "Factura", "FC"),
-        (2, "Nota de débito", "ND"),
+        (2, "Recibo", "RE"),
         (3, "Nota de crédito", "NC"),
-        (4, "Recibo", "RE")
+        (4, "Nota de débito", "ND")
     };
 
     /// <summary>Nombre del tipo de comprobante: "Factura", "Recibo"...</summary>

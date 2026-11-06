@@ -12,11 +12,55 @@ namespace RetencionesRG830.Tests;
 /// </summary>
 public class FormatoComprobanteTests
 {
+    /// <summary>
+    /// Códigos de comprobante de SICORE. Fuente: relevamiento del autor, noviembre de
+    /// 2026, en tres fuentes coincidentes, una de ellas un instructivo de AFIP (ver
+    /// CLAUDE.md, "Códigos de comprobante"). Está escrita acá a propósito, y no leída
+    /// de FormatoComprobante.Tipos: si la tabla del sistema cambia, este test falla.
+    /// Si falla, el error casi seguro no está acá.
+    /// </summary>
+    private static readonly (int Codigo, string Nombre)[] TablaOficialSicore =
+    {
+        (1, "Factura"),
+        (2, "Recibo"),
+        (3, "Nota de crédito"),
+        (4, "Nota de débito"),
+        (5, "Otro comprobante"),
+        (6, "Orden de pago")
+    };
+
+    /// <summary>Existen en SICORE, pero el sistema todavía no los ofrece.</summary>
+    private static readonly int[] CodigosSinImplementar = { 5, 6 };
+
+    /// <summary>
+    /// Recibo y Nota de débito estuvieron invertidos desde la primera versión, y
+    /// ningún test lo vio porque el que había copiaba la tabla equivocada.
+    /// </summary>
+    [Fact]
+    public void Los_tipos_ofrecidos_son_los_de_la_tabla_oficial_de_SICORE()
+    {
+        var esperados = TablaOficialSicore.Where(t => !CodigosSinImplementar.Contains(t.Codigo));
+
+        Assert.Equal(esperados, FormatoComprobante.Tipos.Select(t => (t.Codigo, t.Nombre)));
+    }
+
+    /// <summary>
+    /// Agregar 05 o 06 no es sumar un renglón: antes tiene que estar el control de los
+    /// 145 caracteres del SICORE, y la orden de pago trae sus propias preguntas de
+    /// numeración (regla 12). Cuando eso esté, este test se actualiza a conciencia.
+    /// </summary>
+    [Fact]
+    public void Otro_comprobante_y_orden_de_pago_todavia_no_se_ofrecen()
+    {
+        Assert.All(CodigosSinImplementar, codigo =>
+            Assert.DoesNotContain(FormatoComprobante.Tipos, t => t.Codigo == codigo));
+    }
+
     [Theory]
     [InlineData(1, "Factura", "FC")]
-    [InlineData(2, "Nota de débito", "ND")]
+    [InlineData(2, "Recibo", "RE")]
     [InlineData(3, "Nota de crédito", "NC")]
-    [InlineData(4, "Recibo", "RE")]
+    [InlineData(4, "Nota de débito", "ND")]
     public void Cada_codigo_tiene_su_nombre_y_su_abreviatura(int codigo, string nombre, string abreviatura)
     {
         Assert.Equal(nombre, FormatoComprobante.NombreTipo(codigo));
