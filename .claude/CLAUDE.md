@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 242 tests: 232 verdes y 10 omitidos (ver Tests)
+dotnet test                                      # 265 tests: 255 verdes y 10 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -261,7 +261,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-242 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+265 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -280,12 +280,12 @@ Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de 
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 232 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  recorta nada. Da 255 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
   como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server, los 5 de
   `MigracionNormalizaCuitTests` y los 2 de `CodigosComprobanteGuardadosTests`, que prueban el
   SQL de esas migraciones.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 242
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 265
   verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
   bien, y entre 40 segundos y 1 minuto y medio con LocalDB (medido en noviembre de 2026). Si tarda
   minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el
@@ -443,10 +443,6 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
 
 ### Pendiente para la próxima sesión de código: nombres oficiales del SICORE
 
-- Los comentarios de `GeneradorArchivoSicore` usan nombres propios para algunos campos
-  ("Fecha del boletín de exclusión", "Número de certificado"...). Hay que pasarlos a los
-  nombres de la especificación oficial (ver la tabla en "Archivo de SICORE"). La numeración
-  de posiciones ya es la oficial y no cambia.
 - `README.md` y el comentario de `GeneradorArchivoSicoreTests` todavía dicen que el formato
   salió por ingeniería inversa. Hay que agregar contra qué documento se validó.
 - `README.md` todavía dice que el sistema usa SQLite y que alcanza con `dotnet run`. Desde la
@@ -468,7 +464,7 @@ $ 8.480. Lo fija `ReglaVigenciaRegistroTests.Si_la_version_cambia_a_mitad_de_mes
    `FormatoComprobante.Tipos` (Application), con código, nombre y abreviatura, y de ahí salen
    las pantallas y el certificado PDF. Falta sólo ampliar esa tabla con la orden de pago
    (código 06, ver "Códigos de comprobante"). Ojo
-   con el SICORE: ver el pendiente de prioridad alta en "Archivo de SICORE".
+   con el SICORE: ver "Pendiente: validar el largo al cargar la operación".
 4. **Cargar la tabla completa de regímenes de la RG 830.** Hoy el seed trae sólo 78, 94 y
    116. Con datos reales del anexo, nunca inventados (regla 9).
 5. **Búsqueda y paginación en los listados.** La justifica el volumen esperado.
@@ -731,33 +727,61 @@ facturas, así que ningún test miraba esos códigos. Todo recibo salía en SICO
 
 Confirmado por el contador (consulta de octubre de 2026). Son dos causas:
 
-1. **Un registro que no mide exactamente 145 caracteres.**
+1. **Un registro que no mide exactamente 145 caracteres.** Lo resuelve el control de ancho de
+   `GeneradorArchivoSicore` (ver "Resuelto: el largo de 145 está garantizado").
 2. **El separador decimal.** Lo resuelve `GeneradorArchivoSicore` formateando con
    `CultureInfo.InvariantCulture` y reemplazando el punto por coma (ver "El problema del
    separador decimal"). Lo cubre el test que genera la misma línea bajo dos culturas.
 
-### Pendiente de PRIORIDAD ALTA: el largo de 145 no está garantizado
+### Resuelto: el largo de 145 está garantizado (noviembre de 2026)
 
-La causa de rechazo 1 **no está cubierta.** El generador rellena cada campo hasta su ancho,
-pero nunca recorta ni avisa: un valor que no entra en su campo produce, sin ningún error, un
-renglón de más de 145 caracteres que AFIP rechaza. Los tests verifican `Length == 145` sólo
-en siete operaciones fijas, con valores que entran holgados.
+Antes el generador rellenaba cada campo pero nunca recortaba ni avisaba: `PadRight` no recorta
+lo que sobra. Medido en vivo: punto de venta de 5 y número de 12 dígitos daban un renglón de
+146, sin ningún error, y AFIP lo hubiera rechazado.
 
-El caso que lo vuelve probable es la **orden de pago**: el contador confirmó que se usa
-cuando una factura se paga en cuotas (regla 12), y puede traer otro formato de numeración
-que desborde el campo 13-28, armado hoy como punto de venta (5) + número (8). También
-desbordan un tipo de comprobante de tres dígitos o un importe demasiado grande.
+Cómo quedó:
 
-Qué hay que hacer:
+- **Cada campo declara sus posiciones** en la tabla `GeneradorArchivoSicore.Campos`, y
+  `GenerarLinea` exige que el valor las ocupe exactamente. Mide el texto final, no el número:
+  99.999.999.999,995 entra en la columna, pero al redondear suma un dígito.
+- **Tres controles, porque cada uno ve algo distinto:**
 
-- **El generador tiene que fallar ruidosamente** cuando un valor no entra en su campo, con
-  un error que nombre la operación, el campo y el valor, en lugar de producir un renglón
-  mal medido. Un archivo que no se genera se nota; uno mal medido se descubre cuando AFIP lo
-  rechaza.
-- **Un test que garantice que todo renglón generado mide exactamente 145**, incluidos
-  valores en el límite de cada campo, y otro que verifique el error cuando un valor no
-  entra.
-- Hacerlo **antes** de agregar la orden de pago como tipo de comprobante.
+  | Control | Qué ve | Qué no ve |
+  |---|---|---|
+  | Por campo, al generar | Un valor que no entra en su ancho declarado | Una tabla mal armada: da 145 sólo si las posiciones encajan |
+  | Largo final de la línea, al generar | Un campo de más o de menos | Un campo corrido: si se mueven `Desde` y `Hasta` juntos, sigue midiendo 145 |
+  | Test de la tabla (`La_tabla_de_campos_cubre_...`) | Huecos, superposiciones, campos corridos | Los valores: no genera ninguna línea |
+
+  Con la tabla correcta el control final nunca salta. Por eso `GenerarLinea` acepta también una
+  tabla como parámetro: es lo que permite probarlo con una defectuosa.
+- **Si un valor no entra, el archivo no se genera** (`ErrorArchivoSicore`), y el error nombra
+  operación, campo y valor. Nunca recorta, porque un número recortado es otro número. Nunca
+  omite la operación, porque un archivo incompleto parece bueno. `Generar` junta los problemas
+  de todas las operaciones en un solo error.
+- **`SicoreController.Descargar` muestra el error en el formulario.** Sin esa captura, en
+  producción el operador vería la página genérica de error. No tiene test automático (el
+  proyecto de tests no referencia la Web): se verificó en vivo en modo Production.
+- **Tests:** valores en el límite de cada campo, con su posición, y valores que no entran.
+- **Verificado con `cmp`:** el archivo de las operaciones que entran, incluida una en el
+  límite exacto de varios campos, salió idéntico antes y después del cambio.
+
+### Pendiente: validar el largo al cargar la operación
+
+El control del generador avisa tarde: la operación ya está registrada y no se edita. Salidas:
+
+| Caso | Salida |
+|---|---|
+| Número mal tipeado | Anular y recargar. Consume un certificado |
+| Lo mismo, con el cliente de baja | La regla 11 impide recargar: reactivarlo, cargar y volver a darlo de baja |
+| Número real que no entra | **Ninguna:** recargarlo desborda igual, y el mes queda trabado para ese cliente |
+| Desborda el acumulado (53-66) | **Ninguna:** cada pago entra, pero la suma no. Hace falta superar $ 100.000 millones en un mes |
+
+**Lectura propuesta, sin implementar:** validar también al cargar, en el servidor, en
+`RegistrarAsync` (como la regla 11) y antes en Revisar con mensaje amable. Tiene que usar la
+misma regla del generador, sin copiar los anchos, y sobre la operación ya calculada: es la
+única forma de ver el acumulado. Sólo para las que emiten certificado, porque las demás no van
+al SICORE. El control del generador queda como última red. Hacerlo **antes** de agregar la
+orden de pago, cuya numeración decide además qué hacer con un número real que no entra.
 
 ---
 

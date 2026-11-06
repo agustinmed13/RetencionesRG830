@@ -76,7 +76,24 @@ public class SicoreController : Controller
             return await VolverAlFormulario(modelo);
         }
 
-        var contenido = _generador.Generar(operaciones);
+        string contenido;
+        try
+        {
+            contenido = _generador.Generar(operaciones);
+        }
+        catch (ErrorArchivoSicore error)
+        {
+            // Sin esto, en producción el operador vería la página genérica de error, sin
+            // saber qué operación corregir. Un dato que no entra no es un error del
+            // sistema: tiene arreglo, y el mensaje dice dónde.
+            foreach (var problema in error.Problemas)
+                ModelState.AddModelError(string.Empty, problema);
+            ModelState.AddModelError(string.Empty,
+                "No se generó el archivo, para no presentarlo mal medido ni incompleto. Si el dato "
+                + "está mal cargado, anulá la operación y volvé a cargarla.");
+            modelo.Resumen = await _registro.ResumenPeriodoSicoreAsync(cliente.Id, desde, hasta);
+            return await VolverAlFormulario(modelo);
+        }
 
         // Sin BOM: el "byte order mark" son unos caracteres invisibles que
         // algunos editores ponen al principio del archivo, y que pueden

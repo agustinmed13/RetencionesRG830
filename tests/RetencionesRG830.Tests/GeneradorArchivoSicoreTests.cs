@@ -87,6 +87,177 @@ public class GeneradorArchivoSicoreTests
         Assert.Equal(lineaEsperada, linea);
     }
 
+    /// <summary>Una operación corriente, a la que cada caso le cambia un valor.</summary>
+    private static Operacion OperacionComun() => CrearOperacion(
+        "04/08/2026", 1, 2514, 501000.02m, 414049.59m,
+        "12/08/2026", 3800.99m, "20-31456789-8", 4);
+
+    /// <summary>
+    /// Cada campo variable con el valor más largo que entra. Las líneas reales entran
+    /// holgadas, así que no prueban el borde. Además de medir 145, cada caso mira que
+    /// el valor esté en su posición: un campo corrido podría dar 145 igual.
+    /// </summary>
+    public static TheoryData<Action<Operacion>, int, string> ValoresEnElLimite => new()
+    {
+        { o => o.TipoComprobante = 99, 1, "99" },
+        // 13-28: el punto de venta y el número llenan los 16 caracteres sin espacios.
+        { o => { o.PuntoVenta = 99999; o.NumeroComprobante = 99999999999; }, 13, "9999999999999999" },
+        // El formato habitual, 5 + 8, deja tres espacios.
+        { o => { o.PuntoVenta = 99999; o.NumeroComprobante = 99999999; }, 13, "9999999999999   " },
+        { o => o.ImporteComprobante = 9999999999999.99m, 29, "9999999999999,99" },
+        { o => o.Regimen!.Codigo = 999, 49, "999" },
+        { o => o.BaseCalculoAcumulada = 99999999999.99m, 53, "99999999999,99" },
+        { o => o.MontoRetenido = 99999999999.99m, 80, "99999999999,99" },
+        // El monto retenido se guarda sin redondear: el redondeo no llega a desbordar.
+        { o => o.MontoRetenido = 99999999999.99499999m, 80, "99999999999,99" },
+        { o => o.Proveedor!.Cuit = "27-33678912-0", 112, "00000000027336789120" },
+        // El número de certificado es un int: nunca llega a pasarse de los 14.
+        { o => o.NumeroCertificado = int.MaxValue, 132, "00002147483647" }
+    };
+
+    [Theory]
+    [MemberData(nameof(ValoresEnElLimite))]
+    public void Un_valor_en_el_limite_de_su_campo_mide_145_y_queda_en_su_lugar(
+        Action<Operacion> cambiar, int posicion, string esperado)
+    {
+        var operacion = OperacionComun();
+        cambiar(operacion);
+
+        var linea = new GeneradorArchivoSicore().GenerarLinea(operacion);
+
+        Assert.Equal(145, linea.Length);
+        Assert.Equal(esperado, linea.Substring(posicion - 1, esperado.Length));
+    }
+
+    /// <summary>Todos los campos en su límite a la vez, en un solo renglón.</summary>
+    [Fact]
+    public void Todos_los_campos_en_su_limite_a_la_vez_miden_145()
+    {
+        var operacion = OperacionComun();
+        foreach (var caso in ValoresEnElLimite)
+            ((Action<Operacion>)caso[0])(operacion);
+        // El último caso de 13-28 dejó el número de 8: se vuelve al más largo.
+        operacion.NumeroComprobante = 99999999999;
+
+        var linea = new GeneradorArchivoSicore().GenerarLinea(operacion);
+
+        Assert.Equal(145, linea.Length);
+    }
+
+    /// <summary>
+    /// Cada campo variable con un valor que no entra. El de 12 dígitos es el caso del
+    /// diagnóstico: con punto de venta de 5, daba un renglón de 146 sin ningún error.
+    /// El número de certificado no está porque un int no puede desbordar sus 14.
+    /// </summary>
+    public static TheoryData<Action<Operacion>, string, string> ValoresQueNoEntran => new()
+    {
+        { o => o.TipoComprobante = 100, "Código de comprobante", "100" },
+        { o => { o.PuntoVenta = 12345; o.NumeroComprobante = 202600001234; },
+            "Número del comprobante", "12345202600001234" },
+        { o => { o.PuntoVenta = 100000; o.NumeroComprobante = 99999999999; },
+            "Número del comprobante", "10000099999999999" },
+        { o => o.ImporteComprobante = 10000000000000m, "Importe del comprobante", "10000000000000,00" },
+        { o => o.Regimen!.Codigo = 1000, "Código de régimen", "1000" },
+        { o => o.BaseCalculoAcumulada = 100000000000m, "Base de cálculo", "100000000000,00" },
+        { o => o.MontoRetenido = 100000000000m, "Importe de la retención", "100000000000,00" },
+        // Entra sin redondear, pero al redondear a dos decimales suma un dígito. Por eso
+        // se mide el texto final y no el número.
+        { o => o.MontoRetenido = 99999999999.995m, "Importe de la retención", "100000000000,00" },
+        { o => o.Proveedor!.Cuit = "123456789012345678901",
+            "Número de documento del retenido", "123456789012345678901" }
+    };
+
+    [Theory]
+    [MemberData(nameof(ValoresQueNoEntran))]
+    public void Un_valor_que_no_entra_falla_nombrando_la_operacion_el_campo_y_el_valor(
+        Action<Operacion> cambiar, string campo, string valor)
+    {
+        var operacion = OperacionComun();
+        operacion.Id = 77;
+        cambiar(operacion);
+
+        var error = Assert.Throws<ErrorArchivoSicore>(() => new GeneradorArchivoSicore().GenerarLinea(operacion));
+
+        var problema = Assert.Single(error.Problemas);
+        Assert.Contains("Operación 77", problema);
+        Assert.Contains("certificado N°", problema);
+        Assert.Contains($"\"{campo}\"", problema);
+        Assert.Contains($"\"{valor}\"", problema);
+    }
+
+    /// <summary>
+    /// Una operación mala no deja salir el archivo, ni siquiera con las buenas: uno
+    /// incompleto parece bueno y se presentaría sin esa retención. El error las nombra
+    /// a todas juntas, para no tener que ir descubriéndolas de a una.
+    /// </summary>
+    [Fact]
+    public void Con_una_operacion_que_no_entra_no_sale_el_archivo_y_se_nombran_todas()
+    {
+        var buena = OperacionComun();
+        var mala = OperacionComun();
+        mala.Id = 11;
+        mala.TipoComprobante = 100;
+        var peor = OperacionComun();
+        peor.Id = 12;
+        peor.TipoComprobante = 100;
+        peor.BaseCalculoAcumulada = 100000000000m;
+
+        var error = Assert.Throws<ErrorArchivoSicore>(
+            () => new GeneradorArchivoSicore().Generar(new[] { buena, mala, peor }));
+
+        Assert.Equal(3, error.Problemas.Count);
+        Assert.Single(error.Problemas, p => p.Contains("Operación 11"));
+        Assert.Equal(2, error.Problemas.Count(p => p.Contains("Operación 12")));
+    }
+
+    /// <summary>
+    /// La premisa del control por campo: que cada campo mida su ancho da 145 sólo si
+    /// las posiciones encajan. Mira la tabla, sin generar ninguna línea, y es el único
+    /// que ve un campo corrido: si se mueven Desde y Hasta juntos, el ancho no cambia,
+    /// el valor sigue entrando y la línea sigue midiendo 145.
+    /// </summary>
+    [Fact]
+    public void La_tabla_de_campos_cubre_las_145_posiciones_sin_huecos_ni_superposiciones()
+    {
+        var campos = GeneradorArchivoSicore.Campos;
+
+        Assert.Equal(1, campos[0].Desde);
+        Assert.All(campos, campo => Assert.True(campo.Ancho > 0, $"\"{campo.Nombre}\" no tiene ancho."));
+        foreach (var (anterior, siguiente) in campos.Zip(campos.Skip(1)))
+        {
+            Assert.True(siguiente.Desde == anterior.Hasta + 1,
+                $"\"{siguiente.Nombre}\" empieza en {siguiente.Desde}, "
+                + $"pero \"{anterior.Nombre}\" termina en {anterior.Hasta}.");
+        }
+        Assert.Equal(145, campos[^1].Hasta);
+        Assert.Equal(145, campos.Sum(campo => campo.Ancho));
+    }
+
+    /// <summary>
+    /// El control final, con tablas defectuosas en las que cada campo pasa su control
+    /// individual: una con un campo de más y otra con uno de menos. Con la tabla
+    /// correcta nunca salta, así que es la única forma de saber que funciona.
+    /// </summary>
+    [Fact]
+    public void Una_linea_armada_que_no_mide_145_falla_nombrando_la_operacion_y_el_largo()
+    {
+        var operacion = OperacionComun();
+        operacion.Id = 77;
+        var conUnoDeMas = GeneradorArchivoSicore.Campos
+            .Append(new GeneradorArchivoSicore.Campo("Campo de más", 146, 146, _ => "X"))
+            .ToList();
+        var conUnoDeMenos = GeneradorArchivoSicore.Campos.SkipLast(1).ToList();
+        var generador = new GeneradorArchivoSicore();
+
+        var deMas = Assert.Throws<ErrorArchivoSicore>(() => generador.GenerarLinea(operacion, conUnoDeMas));
+        var deMenos = Assert.Throws<ErrorArchivoSicore>(() => generador.GenerarLinea(operacion, conUnoDeMenos));
+
+        var problema = Assert.Single(deMas.Problemas);
+        Assert.Contains("Operación 77", problema);
+        Assert.Contains("mide 146 caracteres", problema);
+        Assert.Contains("mide 131 caracteres", Assert.Single(deMenos.Problemas));
+    }
+
     /// <summary>
     /// Las líneas reales de arriba son todas facturas: los demás códigos no estaban
     /// cubiertos, y por eso los recibos salieron con 04 sin que nada avisara. Busca
