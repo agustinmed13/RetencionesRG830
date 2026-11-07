@@ -1,58 +1,165 @@
 @model RetencionesRG830.Domain.Entidades.Operacion
+@*
+    Anular una operación. No tiene pantalla propia en docs/prototipo-interfaz.html: se
+    arma con los componentes de la Confirmación, que es su contraparte (datos en dos
+    columnas, el total destacado y "qué pasa" en el panel lateral), y se compara contra
+    esa pantalla.
 
+    Es la única pantalla del sistema que destruye algo, y sobre un documento fiscal.
+    Por eso muestra los mismos datos que Detalle, para verificar que es la operación
+    correcta sin volver atrás, y dice que no se puede deshacer.
+
+    Tres cosas evitan un accidente:
+    - El motivo obligatorio, que también controla el servidor.
+    - La casilla, que obliga a mirar los datos además de escribir. No tiene name: no
+      viaja en el formulario y el servidor no la conoce. La exige el navegador, con
+      "required" aunque no corra JavaScript. Protege de un accidente, no de un pedido
+      armado a mano.
+    - wwwroot/js/anular.js, que deja el botón deshabilitado hasta completar las dos
+      cosas y bloquea el segundo envío de un doble clic.
+
+    El foco no arranca en el botón, y data-enter-siguiente evita que Enter en la casilla
+    envíe el formulario.
+*@
 @{
     ViewData["Title"] = "Anular operación";
+    var numeroCertificado = Model.NumeroCertificado is int numero
+        ? FormatoComprobante.NumeroCertificado(numero)
+        : null;
+    var textoBoton = numeroCertificado is null ? "Anular operación" : $"Anular certificado N° {numeroCertificado}";
 }
 
-<h1>Anular operación</h1>
+<ol class="migas">
+    <li><a asp-action="Index">Operaciones</a></li>
+    <li><a asp-action="Detalle" asp-route-id="@Model.Id">Detalle</a></li>
+    <li>Anular</li>
+</ol>
+
+<div class="cabecera-pagina">
+    <h1>Anular operación</h1>
+    <span class="tag tag-vigente">Vigente</span>
+</div>
 
 @if (TempData["Mensaje"] != null)
 {
-    <div class="alert alert-warning">@TempData["Mensaje"]</div>
+    <div class="aviso" role="status">
+        <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+        <span>@TempData["Mensaje"]</span>
+    </div>
 }
 
-<div class="alert alert-danger" style="max-width:640px">
-    La operación <strong>no se borra</strong>: queda registrada como anulada,
-    con el motivo, la fecha y quién la anuló.
-    @if (Model.TieneCertificado)
-    {
-        <text>El número de certificado @Model.NumeroCertificado no se reutiliza, para no dejar
-        salteos en la numeración.</text>
-    }
-    else
-    {
-        @* Regla 10: no retuvo, así que no hay certificado que invalidar. Lo único que
-           cambia es que deja de sumar al acumulado del mes. *@
-        <text>Esta operación no emitió certificado, porque no retuvo. Al anularla deja
-        de sumar al acumulado del mes de este proveedor.</text>
-    }
+<div class="aviso aviso-error" role="note">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span>
+        <b>Esta acción no se puede deshacer.</b>
+        La operación no se borra: queda registrada como anulada, con el motivo, la fecha y quién la anuló.
+        @if (numeroCertificado is not null)
+        {
+            <text>El número de certificado <span class="numero-certificado">@numeroCertificado</span> no se reutiliza, para no dejar salteos en la numeración.</text>
+        }
+        else
+        {
+            @* Regla 10: no retuvo, así que no hay certificado que invalidar. Lo único que
+               cambia es que deja de sumar al acumulado del mes. *@
+            <text>Esta operación no emitió certificado, porque no retuvo. Al anularla deja de sumar al acumulado del mes de este proveedor.</text>
+        }
+    </span>
 </div>
 
-<div class="card mb-3" style="max-width:640px">
-    <div class="card-header">@(Model.TieneCertificado ? $"Certificado N° {Model.NumeroCertificado}" : "Operación sin certificado")</div>
-    <table class="table mb-0">
-        <tbody>
-            <tr><td>Cliente</td><td>@Model.Cliente?.RazonSocial</td></tr>
-            <tr><td>Proveedor</td><td>@Model.Proveedor?.RazonSocial</td></tr>
-            <tr><td>Comprobante</td><td>@Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</td></tr>
-            <tr><td>Fecha de la retención</td><td>@Model.FechaRetencion.ToString("dd/MM/yyyy")</td></tr>
-            <tr><td>Retención practicada</td><td class="text-end">@Model.MontoRetenido.ToString("C2")</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<form asp-action="Anular" method="post" style="max-width:640px">
-    <input type="hidden" name="id" value="@Model.Id" />
-
-    <div class="mb-3">
-        <label class="form-label">Motivo de la anulación</label>
-        <textarea name="motivo" class="form-control" rows="3" required minlength="5"></textarea>
-        <div class="form-text">
-            Por ejemplo: "Error en el importe gravado" o "Comprobante anulado
-            por el proveedor". Queda guardado como respaldo.
+<div class="dos-columnas">
+    <div class="tarjeta">
+        <div class="resumen">
+            <div class="dato">
+                <div class="etiqueta">Certificado</div>
+                @if (numeroCertificado is not null)
+                {
+                    <div class="valor numero-certificado">N° @numeroCertificado</div>
+                }
+                else
+                {
+                    <div class="valor"><span class="tag tag-sin-certificado">Sin certificado</span></div>
+                }
+            </div>
+            <div class="dato"><div class="etiqueta">Agente de retención</div><div class="valor">@Model.Cliente?.RazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">Proveedor</div><div class="valor">@Model.Proveedor?.RazonSocial</div></div>
+            <div class="dato"><div class="etiqueta">CUIT del proveedor</div><div class="valor cuit">@FormatoCuit.ParaMostrar(Model.Proveedor?.Cuit)</div></div>
+            <div class="dato"><div class="etiqueta">Comprobante</div><div class="valor">@FormatoComprobante.NombreTipo(Model.TipoComprobante) @Model.PuntoVenta.ToString("D5")-@Model.NumeroComprobante.ToString("D8")</div></div>
+            <div class="dato">
+                <div class="etiqueta">Régimen</div>
+                <div class="valor"><span class="regimen">@Model.Regimen?.Codigo</span> @Model.Regimen?.Descripcion</div>
+                <div class="texto-atenuado">Valores vigentes desde <span class="fecha">@Model.Regimen?.VigenciaDesde.ToString("dd/MM/yyyy")</span></div>
+            </div>
+            <div class="dato"><div class="etiqueta">Fecha del comprobante</div><div class="valor fecha">@Model.FechaComprobante.ToString("dd/MM/yyyy")</div></div>
+            <div class="dato"><div class="etiqueta">Fecha de la retención</div><div class="valor fecha">@Model.FechaRetencion.ToString("dd/MM/yyyy")</div></div>
+            <div class="dato"><div class="etiqueta">Importe total</div><div class="valor cifras">@Model.ImporteComprobante.ToString("C2")</div></div>
+            <div class="dato"><div class="etiqueta">Importe gravado</div><div class="valor cifras">@Model.ImporteGravado.ToString("C2")</div></div>
         </div>
+
+        @* Lo que quedó guardado, sin recalcular: igual que en Detalle. *@
+        <div class="desglose">
+            <div class="renglon">
+                <span class="etiqueta">Base acumulada del mes con esta operación</span>
+                <span class="valor">@Model.BaseCalculoAcumulada.ToString("C2")</span>
+            </div>
+            <div class="renglon renglon-total">
+                <span class="etiqueta">Retención practicada</span>
+                <span class="valor">@Model.MontoRetenido.ToString("C2")</span>
+            </div>
+        </div>
+
+        <form asp-action="Anular" method="post" id="form-anular" data-enter-siguiente>
+            <input type="hidden" name="id" value="@Model.Id" />
+
+            <section class="tarjeta-seccion">
+                <div class="campo">
+                    <label for="motivo">Motivo de la anulación <span class="requerido">*</span></label>
+                    <textarea id="motivo" name="motivo" class="campo-control" rows="3" required minlength="5"></textarea>
+                    <div class="campo-ayuda">
+                        Por ejemplo: "Error en el importe gravado" o "Comprobante anulado por el proveedor". Queda guardado como respaldo.
+                    </div>
+                </div>
+                <div class="campo">
+                    <label class="campo-casilla">
+                        <input type="checkbox" id="confirma-anulacion" required />
+                        <span>Revisé los datos de esta operación y entiendo que la anulación no se puede deshacer.</span>
+                    </label>
+                </div>
+            </section>
+
+            <div class="pie-formulario">
+                <a asp-action="Detalle" asp-route-id="@Model.Id" class="boton boton-neutro">Volver</a>
+                <button type="submit" id="boton-anular" class="boton boton-peligro">@textoBoton</button>
+            </div>
+        </form>
     </div>
 
-    <button type="submit" class="btn btn-danger">Anular operación</button>
-    <a asp-action="Detalle" asp-route-id="@Model.Id" class="btn btn-secondary">Volver</a>
-</form>
+    <aside class="tarjeta panel-calculo" aria-label="Qué pasa al anular">
+        <h2 class="panel-calculo-titulo">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué pasa al anular
+        </h2>
+        <div class="panel-texto">
+            @if (numeroCertificado is not null)
+            {
+                <p>El certificado <b class="numero-certificado">N° @numeroCertificado</b> queda anulado y conserva su número.</p>
+            }
+            <p>La operación deja de sumar al acumulado mensual de @Model.Proveedor?.RazonSocial en el régimen @Model.Regimen?.Codigo.</p>
+            @if (numeroCertificado is not null)
+            {
+                <p>No sale en los archivos de SICORE que se generen desde ahora. Si el período @Model.FechaRetencion.ToString("MM/yyyy") ya se presentó, lo presentado no cambia.</p>
+            }
+            else
+            {
+                <p>No cambia nada en SICORE: una operación sin certificado no se informa.</p>
+            }
+            <p>Queda registrado que la anuló @(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value), con la fecha y el motivo.</p>
+        </div>
+        <div class="nota-panel nota-panel-alerta">
+            <svg class="icono" width="15" height="15" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+            <span>Las operaciones posteriores del mes, de este proveedor y este régimen, no se recalculan.</span>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/js/anular.js" asp-append-version="true"></script>
+}

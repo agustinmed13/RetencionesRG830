@@ -993,11 +993,18 @@ select.campo-control {
     border-color: var(--color-anulada-texto);
 }
 
-.campo-casilla {
+/* El segundo selector es para la casilla dentro de un .campo: sin él, .campo > label
+   le gana por especificidad y la deja como etiqueta, pegada y en negrita. */
+.campo-casilla,
+.campo > label.campo-casilla {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-bottom: 0;
     font-size: 12.5px;
+    font-weight: 400;
+    color: var(--color-texto);
+    cursor: pointer;
 }
 
 /* Rejilla para poner varios campos en una fila. */

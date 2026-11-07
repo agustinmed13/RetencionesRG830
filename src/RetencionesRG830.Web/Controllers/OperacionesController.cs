@@ -226,11 +226,19 @@ public class OperacionesController : Controller
 
         if (operacion.Anulada)
         {
-            TempData["Mensaje"] = "Esa operación ya estaba anulada.";
-            return RedirectToAction(nameof(Detalle), new { id });
+            return VolverPorqueYaEstabaAnulada(id);
         }
 
         return View(operacion);
+    }
+
+    /// <summary>
+    /// Vuelve al Detalle, que muestra quién la anuló y por qué. Lo usan el GET y el POST.
+    /// </summary>
+    private IActionResult VolverPorqueYaEstabaAnulada(int id)
+    {
+        TempData["Mensaje"] = "Esa operación ya estaba anulada.";
+        return RedirectToAction(nameof(Detalle), new { id });
     }
 
     /// <summary>
@@ -248,7 +256,16 @@ public class OperacionesController : Controller
 
         var usuarioId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        await _registro.AnularAsync(id, motivo.Trim(), usuarioId);
+        // No se pregunta antes si está anulada: otra persona puede anularla justo después
+        // de la pregunta. Lo decide el servicio, en el mismo UPDATE.
+        try
+        {
+            await _registro.AnularAsync(id, motivo.Trim(), usuarioId);
+        }
+        catch (OperacionYaAnuladaException)
+        {
+            return VolverPorqueYaEstabaAnulada(id);
+        }
 
         return RedirectToAction(nameof(Detalle), new { id });
     }

@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 265 tests: 255 verdes y 10 omitidos (ver Tests)
+dotnet test                                      # 269 tests: 259 verdes y 10 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -261,7 +261,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-265 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+269 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -280,12 +280,12 @@ Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de 
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 255 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  recorta nada. Da 259 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
   como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server, los 5 de
   `MigracionNormalizaCuitTests` y los 2 de `CodigosComprobanteGuardadosTests`, que prueban el
   SQL de esas migraciones.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 265
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 269
   verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
   bien, y entre 40 segundos y 1 minuto y medio con LocalDB (medido en noviembre de 2026). Si tarda
   minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el
@@ -389,6 +389,37 @@ Decisiones de la interfaz que no se negocian:
   documentos fiscales no se pueden borrar.
 - Enter avanza al campo siguiente, no envía el formulario (`wwwroot/js/site.js`).
 - Los roles son **Estudio** y **Cliente**, no "Administrador".
+
+### La pantalla de Anular (noviembre de 2026)
+
+Es la única pantalla que destruye algo. Muestra los mismos datos que Detalle, para verificar
+que es la operación correcta, y dice que no se puede deshacer. Contra un accidente:
+
+- El motivo obligatorio, que también controla el servidor.
+- Una casilla "Revisé los datos…", y el botón deshabilitado hasta completar las dos cosas. El
+  botón nombra el certificado que anula.
+- `wwwroot/js/anular.js` bloquea el segundo envío de un doble clic.
+
+**La casilla la exige sólo el navegador:** no tiene `name`, no viaja y el servidor no la conoce.
+Protege de un accidente, no de un pedido armado a mano. Exigirla en el servidor sería cambiar la
+lógica de anulación, y la migración de la pantalla fue sólo interfaz.
+
+**Vale la primera anulación.** Si llega un segundo pedido (dos pestañas, dos personas a la vez),
+`AnularAsync` lanza `OperacionYaAnuladaException`, no cambia nada, y el controlador vuelve al
+Detalle con el aviso "Esa operación ya estaba anulada", igual que el GET. Motivo, responsable y
+fecha son el respaldo frente a una inspección.
+
+**El control va dentro del UPDATE (`WHERE Anulada = 0`), no en una lectura previa.** Antes el
+servicio leía, preguntaba y guardaba, y con dos personas a la vez las dos leían "no anulada": la
+segunda **pisaba a la primera sin ningún error**. Medido en SQLite y en SQL Server. Por eso el
+controlador no pregunta antes: esa pregunta tampoco protege, porque la respuesta puede cambiar
+justo después. `ExecuteUpdate` no pasa por las entidades, así que después hay que recargar la que
+el contexto tenga en memoria. Lo fija `AnulacionRepetidaTests`, que usa un interceptor para meter
+a la primera persona justo antes del UPDATE de la segunda: con dos tareas en paralelo el resultado
+dependería del azar. **Lección:** "mirar y después actuar" no protege de dos pedidos a la vez.
+
+**Pendiente: POST a Anular con un Id que no existe da error 500.** El GET da 404. No se llega desde
+la interfaz: hace falta un pedido armado a mano.
 
 ### Pendiente: habilitar el rol Cliente (RF-04, RN-17)
 

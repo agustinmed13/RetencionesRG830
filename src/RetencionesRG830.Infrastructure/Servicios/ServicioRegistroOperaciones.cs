@@ -278,23 +278,38 @@ public class ServicioRegistroOperaciones
     /// Anula una operación. No la borra: queda registrada con el motivo,
     /// la fecha y quién la anuló, pero deja de sumar al acumulado del mes
     /// y no sale en el archivo de SICORE.
+    ///
+    /// Vale la primera anulación: si ya estaba anulada lanza
+    /// OperacionYaAnuladaException y no cambia nada. El motivo, el responsable y la
+    /// fecha son el respaldo frente a una inspección.
+    ///
+    /// Por eso el control va dentro del mismo UPDATE ("WHERE Anulada = 0") y no se
+    /// lee primero. Antes se leía, se preguntaba y se guardaba: dos personas a la vez
+    /// leían las dos "no anulada", y la segunda pisaba a la primera sin ningún error.
+    /// Así decide la base, en un solo paso: uno de los dos pedidos encuentra cero filas.
     /// </summary>
     public async Task<Operacion> AnularAsync(int operacionId, string motivo, int usuarioId)
     {
+        DateTime? fecha = DateTime.Now;
+        var anuladas = await _db.Operaciones
+            .Where(o => o.Id == operacionId && !o.Anulada)
+            .ExecuteUpdateAsync(cambios => cambios
+                .SetProperty(o => o.Anulada, true)
+                .SetProperty(o => o.MotivoAnulacion, motivo)
+                .SetProperty(o => o.FechaAnulacion, fecha)
+                .SetProperty(o => o.AnuladaPorUsuarioId, usuarioId));
+
         var operacion = await _db.Operaciones.FindAsync(operacionId)
             ?? throw new InvalidOperationException("La operación indicada no existe.");
 
-        if (operacion.Anulada)
+        if (anuladas == 0)
         {
-            throw new InvalidOperationException("La operación ya estaba anulada.");
+            throw new OperacionYaAnuladaException();
         }
 
-        operacion.Anulada = true;
-        operacion.MotivoAnulacion = motivo;
-        operacion.FechaAnulacion = DateTime.Now;
-        operacion.AnuladaPorUsuarioId = usuarioId;
-
-        await _db.SaveChangesAsync();
+        // ExecuteUpdate escribe directo en la base, sin pasar por las entidades: una que
+        // este contexto ya tuviera en memoria seguiría diciendo que está vigente.
+        await _db.Entry(operacion).ReloadAsync();
 
         return operacion;
     }
