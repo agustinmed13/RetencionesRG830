@@ -1,25 +1,46 @@
 ﻿@model ErrorViewModel
+@*
+    Página de error inesperado. Sólo se ve en Production: Program.cs la registra con
+    UseExceptionHandler("/Home/Error"). En Development, ASP.NET muestra en su lugar la
+    página con el detalle técnico de la excepción.
+
+    No tiene pantalla propia en docs/prototipo-interfaz.html: se arma con los
+    componentes de las demás (cabecera, aviso de error y panel de texto).
+
+    Reemplaza la de la plantilla de ASP.NET, que estaba en inglés y le explicaba al
+    usuario cómo activar el modo Development, que es lo que no hay que hacer en un
+    sistema desplegado.
+
+    No muestra el detalle de la excepción: puede contener datos internos (consultas,
+    rutas, nombres de tablas). Sólo el código del pedido, que no revela nada.
+*@
 @{
     ViewData["Title"] = "Error";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<div class="cabecera-pagina">
+    <h1>Ocurrió un error</h1>
+</div>
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+<div class="aviso aviso-error" role="alert">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span><b>El sistema no pudo completar el pedido.</b> Es un error del sistema, no de los datos que cargaste.</span>
+</div>
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+<div class="tarjeta">
+    <h2 class="panel-calculo-titulo">
+        <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Qué hacer
+    </h2>
+    @* Antes de repetir, revisar: las operaciones no se borran (regla 6), así que una
+       repetida por las dudas sólo se corrige anulándola y consume un certificado. *@
+    <div class="panel-texto">
+        <p>Si estabas registrando o anulando una operación, <b>revisá el listado de operaciones antes de repetirla</b>: puede haber quedado guardada.</p>
+        @if (Model.ShowRequestId)
+        {
+            <p>Si el problema se repite, avisá a quien administra el sistema e incluí este código, que identifica el pedido que falló: <b>@Model.RequestId</b></p>
+        }
+    </div>
+    <div class="pie-formulario">
+        <a class="boton boton-primario" asp-controller="Home" asp-action="Index">Volver al inicio</a>
+    </div>
+</div>

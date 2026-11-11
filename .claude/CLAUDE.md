@@ -331,26 +331,76 @@ Si hace falta un dato nuevo, inventarlo.
 | 2 | Motor de cálculo con tests contra datos reales | Completa |
 | 3 | Registro de operaciones con acumulado mensual automático | Completa |
 | 4 | Certificado en PDF (QuestPDF) y exportación para SICORE | Completa |
-| 5 | **Rediseño de la interfaz** (en curso), historial y búsqueda, reportes, despliegue | En curso |
+| 5 | Rediseño de la interfaz (terminado salvo el panel principal), historial y búsqueda, reportes, despliegue | En curso |
 | 6 | Manual de usuario y validación con el estudio | Pendiente |
 
-### Trabajo en curso: rediseño de la interfaz
+### Rediseño de la interfaz (terminado en noviembre de 2026)
 
-Se adopta un aspecto nuevo: barra lateral oscura fija, azul de acción, tarjetas, tablas con
-tags de estado. **Se implementa con CSS sobre las vistas Razor existentes.** Se descartó
-reescribir el frontend como SPA en React: obligaría a convertir los controladores en API y
-pondría en riesgo un sistema que funciona y está verificado, a cambio de algo estético.
+Aspecto nuevo: barra lateral oscura fija, azul de acción, tarjetas, tablas con tags de
+estado. **Se implementó con CSS sobre las vistas Razor existentes.** Se descartó reescribir
+el frontend como SPA en React: obligaría a convertir los controladores en API y pondría en
+riesgo un sistema que funciona y está verificado, a cambio de algo estético.
 
-Orden de trabajo:
+**Todas las pantallas están migradas, y Bootstrap se quitó el 11/11/2026.** `sigere.css` es
+la única hoja de estilos. Lo que Bootstrap aplicaba sin clase (su "reboot": `box-sizing`,
+fuente de botones y campos, márgenes de títulos y párrafos) lo fija ahora `sigere.css`, en
+su sección Base o en cada componente. Antes de quitarlo se verificó que ninguna vista usara
+el JavaScript de Bootstrap (desplegables, modales, pestañas, tooltips, avisos que se cierran)
+y que toda clase usada en una vista estuviera definida en `sigere.css`.
 
-1. `_Layout.cshtml` + hoja de estilos propia en `wwwroot/css/`  ← paso actual
+Se quitaron también jQuery, `_ValidationScriptsPartial`, `site.css` (resto de la plantilla) y
+la página `Home/Privacy` de la plantilla. **`wwwroot/lib` ya no existe.** En `wwwroot` quedan
+sólo `css/sigere.css`, la carpeta `js/` (`site.js` y un script por pantalla: `anular.js`,
+`nueva-operacion.js`, `sicore.js`) y `favicon.ico`. Ninguna biblioteca de JavaScript.
+
+**Falta el panel principal** (era el paso 6). El Inicio es una página provisoria, con un
+saludo y accesos directos (`Views/Home/Index.cshtml` lo dice en su encabezado). Es lo único
+del rediseño que requiere consultas nuevas: los indicadores del período y las últimas
+operaciones, según la pantalla "Panel principal" del prototipo.
+
+Orden en que se hizo (historia, no lista de pendientes):
+
+1. `_Layout.cshtml` + hoja de estilos propia en `wwwroot/css/`
 2. Login
 3. Listado de operaciones con filtros
 4. Nueva operación con panel de cálculo al costado, y la pantalla de confirmación
-5. El resto: Clientes, Proveedores, Regímenes, Simulador, SICORE, Detalle, Anular
-6. Panel principal (último: es lo único que requiere consultas nuevas)
+5. El resto: Clientes, Proveedores, Regímenes, Simulador, SICORE, Detalle, Anular, y al
+   final Error y Acceso denegado. Después, Bootstrap fuera del layout.
+6. Panel principal: pendiente (ver arriba).
 
-Cómo se migra cada pantalla:
+### Sin validación del lado del cliente, a propósito
+
+**El sistema no valida en el navegador.** Todos los mensajes de error los arma el servidor:
+el formulario se envía, el controlador valida y la vista vuelve con los errores.
+
+Quien escriba una vista nueva: `asp-validation-for` y `asp-validation-summary` **funcionan,
+pero sólo después del envío**. No marcan el campo mientras se escribe ni impiden enviar. Los
+tag helpers siguen generando los atributos `data-val-*`, pero no hay nada que los lea: hacía
+falta jQuery con `jquery-validation-unobtrusive`, cargados desde `_ValidationScriptsPartial`, y
+no existen más. Que no pase nada al salir de un campo con error es lo esperado, no una falla.
+Si algún día se quiere, es una decisión nueva, no un arreglo.
+
+Por qué así:
+
+- **Las reglas están en un solo lugar.** Validar también en el navegador obliga a escribir
+  cada regla dos veces, y la del navegador queda sin tests. Es el mismo criterio que el panel
+  de Nueva operación: `nueva-operacion.js` no calcula, le pide el cálculo al servidor.
+- **La validación de jQuery leería mal los importes.** Su regla de número toma la coma como
+  separador de miles, que es justamente el problema que el sistema vino a resolver (ver "El
+  problema del separador decimal"). `LectorImporte` es la única regla.
+- **Ya no la había antes de quitar jQuery:** se verificó que ninguna vista incluía
+  `_ValidationScriptsPartial` ni cargaba sus bibliotecas. Quitarlos no cambió el
+  comportamiento de ningún formulario.
+
+Lo que sí pasa en el navegador, y no es validación de datos:
+
+- `site.js` saca el borde rojo y el mensaje de un campo cuando el operador lo corrige. No
+  decide si el valor nuevo es válido: eso lo vuelve a controlar el servidor al enviar.
+- En Anular, `required` y `minlength` del HTML (los controla el navegador, sin JavaScript) y
+  `anular.js` deshabilitan el botón hasta completar los datos. Es una ayuda contra un
+  accidente: el motivo lo controla también el servidor.
+
+Cómo se migraba cada pantalla (vale para el panel principal y para cualquier pantalla nueva):
 
 - **`docs/prototipo-interfaz.html` es la referencia normativa del diseño.** Cuando algo no
   coincide, manda el prototipo. `sigere.css` replica sus valores exactos (colores, tamaños
@@ -368,13 +418,9 @@ Cómo se migra cada pantalla:
   Anular) no tienen diseño propio: se arman con los mismos componentes y se comparan contra
   la pantalla del prototipo más parecida (un listado contra el de operaciones, un formulario
   contra el de nueva operación).
-- `wwwroot/css/sigere.css` **convive con Bootstrap** durante el rediseño. Sus clases tienen
-  nombre propio en español (`boton`, `tarjeta`, `tabla`, `campo`...) y ninguna pisa una de
-  Bootstrap, para que las vistas sin migrar sigan funcionando.
-- Al migrar una vista hay que reemplazar **todas** sus clases de Bootstrap, incluida la
-  grilla (`container`, `row`, `col-*`), no sólo botones, tarjetas y tablas. Al terminar el
-  paso 5 se quita Bootstrap del layout; si queda una clase suya en alguna vista, esa
-  pantalla se desarma.
+- Las clases de `sigere.css` tienen nombre en español (`boton`, `tarjeta`, `tabla`,
+  `campo`...). **Una pantalla nueva usa sólo esas clases.** Una clase que no esté definida en
+  `sigere.css` no tiene ningún estilo: ya no hay Bootstrap que la respalde.
 
 Decisiones de la interfaz que no se negocian:
 

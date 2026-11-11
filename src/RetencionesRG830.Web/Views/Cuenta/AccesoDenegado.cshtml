@@ -1,6 +1,63 @@
+@using System.Security.Claims
+@*
+    Pantalla a la que ASP.NET manda a un usuario que inició sesión pero no tiene el rol
+    que pide la página (Program.cs, AccessDeniedPath). Hoy le pasa al rol Cliente con
+    cualquier pantalla salvo el Inicio: todos los demás controladores exigen el rol
+    Estudio. Es la que demuestra que los roles se controlan en el servidor y no sólo
+    ocultando enlaces del menú.
+
+    No tiene pantalla propia en docs/prototipo-interfaz.html: se arma con los mismos
+    componentes que la página de error (cabecera, aviso y panel de texto).
+
+    ASP.NET agrega a la dirección la página pedida (?ReturnUrl=...). Se muestra como
+    texto, nunca como enlace: la escribe quien arma la URL, y Razor la codifica.
+*@
 @{
     ViewData["Title"] = "Acceso denegado";
+
+    var paginaPedida = Context.Request.Query["ReturnUrl"].ToString();
+    var rol = User.FindFirst(ClaimTypes.Role)?.Value;
+    var conSesion = User.Identity?.IsAuthenticated == true;
 }
 
-<h1>Acceso denegado</h1>
-<p>Tu usuario no tiene permiso para ver esta página.</p>
+<div class="cabecera-pagina">
+    <h1>Acceso denegado</h1>
+</div>
+
+<div class="aviso aviso-error" role="alert">
+    <svg class="icono" width="18" height="18" viewBox="0 0 24 24"><use href="#i-alert" /></svg>
+    <span>
+        @if (conSesion && rol is not null)
+        {
+            <text><b>Tu usuario, con el rol @rol, no tiene permiso para ver esta página.</b></text>
+        }
+        else
+        {
+            <text><b>No tenés permiso para ver esta página.</b></text>
+        }
+    </span>
+</div>
+
+<div class="tarjeta">
+    <h2 class="panel-calculo-titulo">
+        <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-info" /></svg>Por qué
+    </h2>
+    <div class="panel-texto">
+        @if (!string.IsNullOrEmpty(paginaPedida))
+        {
+            <p>La página que pediste es <b>@paginaPedida</b>.</p>
+        }
+        <p>Cada pantalla del sistema está habilitada para ciertos roles, y el servidor lo controla en cada pedido: no alcanza con escribir la dirección. Las pantallas de operación y de administración son del rol <b>Estudio</b>.</p>
+        <p>Si necesitás acceder, pedíselo a quien administra el sistema.</p>
+    </div>
+    <div class="pie-formulario">
+        @if (conSesion)
+        {
+            <a class="boton boton-primario" asp-controller="Home" asp-action="Index">Volver al inicio</a>
+        }
+        else
+        {
+            <a class="boton boton-primario" asp-controller="Cuenta" asp-action="Login">Iniciar sesión</a>
+        }
+    </div>
+</div>

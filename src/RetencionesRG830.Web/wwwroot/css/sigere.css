@@ -6,11 +6,12 @@
    prototipo, traducidos a nombres de clase en español. Si algo no coincide,
    manda el prototipo.
 
-   Convive con Bootstrap mientras dura el rediseño: las vistas que todavía no
-   se migraron siguen usando sus clases (btn, card, table...). Por eso todas
-   las clases de este archivo tienen nombre propio y ninguna pisa una clase
-   de Bootstrap. Cuando la última vista esté migrada, Bootstrap se quita del
-   layout y este archivo queda solo.
+   Es la única hoja de estilos de la aplicación. Durante el rediseño convivió
+   con Bootstrap, y por eso las clases tienen nombre propio en español. En
+   noviembre de 2026, con todas las vistas migradas, Bootstrap se quitó del
+   layout. Lo que Bootstrap ponía sin clase (su "reboot": box-sizing, fuente
+   de los controles, márgenes de títulos y párrafos) lo fija este archivo en
+   la sección Base o en cada componente.
    ========================================================================= */
 
 
@@ -81,8 +82,7 @@
 }
 
 /* El prototipo usa 13px como tamaño base: la densidad de una aplicación de
-   gestión. Bootstrap mide todo en rem (múltiplos del tamaño de <html>), así
-   que fijar <html> también achica las vistas que todavía usan Bootstrap. */
+   gestión. */
 html {
     font-size: 13px;
 }
@@ -104,10 +104,9 @@ body.sigere {
     line-height: 1.5;
 }
 
-/* Títulos. Se pisan los de Bootstrap (h1 de 2.5rem, h2 de 2rem), pensados
-   para páginas de contenido. :where() deja la especificidad en la de un
-   simple h1: le gana a Bootstrap por venir después, pero cualquier clase
-   propia (.tarjeta-titulo, por ejemplo) le gana a esta regla. */
+/* Títulos. Más chicos que los del navegador, pensados para páginas de
+   contenido. :where() deja la especificidad en la de un simple h1: cualquier
+   clase propia (.tarjeta-titulo, por ejemplo) le gana a esta regla. */
 :where(.app-contenido) h1 {
     margin: 0 0 18px;
     font-size: 25px;
