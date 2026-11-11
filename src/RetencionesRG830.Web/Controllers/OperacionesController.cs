@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
-using RetencionesRG830.Infrastructure.Persistencia;
 using RetencionesRG830.Web.Models;
 using RetencionesRG830.Infrastructure.Servicios;
 using RetencionesRG830.Web.Infraestructura;
@@ -14,30 +12,21 @@ namespace RetencionesRG830.Web.Controllers;
 [Authorize(Roles = "Estudio")]
 public class OperacionesController : Controller
 {
-    private readonly RetencionesRG830DbContext _db;
+    // Sin DbContext a propósito: todas las consultas pasan por el servicio, que es lo
+    // que los tests pueden probar. Ahí va a ir el filtro por empresa del rol Cliente
+    // (HU-15); una consulta escrita acá se lo saltearía sin que ningún test lo note.
     private readonly ServicioRegistroOperaciones _registro;
     private readonly GeneradorCertificadoPdf _pdf;
 
     public OperacionesController(
-        RetencionesRG830DbContext db,
         ServicioRegistroOperaciones registro,
         GeneradorCertificadoPdf pdf)
     {
-        _db = db;
         _registro = registro;
         _pdf = pdf;
     }
     public async Task<IActionResult> Index(int? clienteId)
     {
-        var query = _db.Operaciones
-            .Include(o => o.Cliente)
-            .Include(o => o.Proveedor)
-            .Include(o => o.Regimen)
-            .AsQueryable();
-
-        if (clienteId is not null)
-            query = query.Where(o => o.ClienteId == clienteId);
-
         ViewBag.ClienteId = clienteId;
 
         // El nombre del cliente filtrado se busca aparte y no se toma de la primera
@@ -45,17 +34,12 @@ public class OperacionesController : Controller
         // Si está de baja, el listado no ofrece "Nueva operación" (regla 11).
         if (clienteId is not null)
         {
-            var cliente = await _db.Clientes.FindAsync(clienteId);
+            var cliente = await _registro.ObtenerClienteAsync(clienteId.Value);
             ViewBag.ClienteRazonSocial = cliente?.RazonSocial;
             ViewBag.ClienteActivo = cliente?.Activo ?? false;
         }
 
-        var operaciones = await query
-            // Dentro del mismo día, por orden de carga y no por número de certificado:
-            // las operaciones que no retuvieron no tienen número (regla 10).
-            .OrderByDescending(o => o.FechaRetencion)
-            .ThenByDescending(o => o.Id)
-            .ToListAsync();
+        var operaciones = await _registro.ListarOperacionesAsync(clienteId);
 
         return View(operaciones);
     }
@@ -156,7 +140,7 @@ public class OperacionesController : Controller
 
         modelo.Resultado = await _registro.SimularAsync(operacion);
 
-        var proveedor = (await _db.Proveedores.FindAsync(modelo.ProveedorId))!;
+        var proveedor = (await _registro.ObtenerProveedorAsync(modelo.ProveedorId))!;
         modelo.ProveedorNombre = proveedor.RazonSocial;
         modelo.ProveedorCuit = proveedor.Cuit;
         modelo.ProveedorCondicion = FormatoProveedor.Condicion(proveedor);
@@ -216,11 +200,7 @@ public class OperacionesController : Controller
     [HttpGet]
     public async Task<IActionResult> Anular(int id)
     {
-        var operacion = await _db.Operaciones
-            .Include(o => o.Cliente)
-            .Include(o => o.Proveedor)
-            .Include(o => o.Regimen)
-            .FirstOrDefaultAsync(o => o.Id == id);
+        var operacion = await _registro.ObtenerOperacionAsync(id);
 
         if (operacion is null) return NotFound();
 
@@ -344,7 +324,7 @@ public class OperacionesController : Controller
             return "El pedido llegó sin el cliente de la operación, así que no se registró nada. "
                  + "Volvé a cargarla desde el listado de operaciones del cliente.";
 
-        var cliente = await _db.Clientes.FindAsync(modelo.ClienteId);
+        var cliente = await _registro.ObtenerClienteAsync(modelo.ClienteId);
         if (cliente is null)
             return "El cliente indicado no existe, así que no se registró nada.";
 
@@ -420,11 +400,7 @@ public class OperacionesController : Controller
 
     public async Task<IActionResult> Detalle(int id)
     {
-        var operacion = await _db.Operaciones
-            .Include(o => o.Cliente)
-            .Include(o => o.Proveedor)
-            .Include(o => o.Regimen)
-            .FirstOrDefaultAsync(o => o.Id == id);
+        var operacion = await _registro.ObtenerOperacionAsync(id);
 
         if (operacion is null) return NotFound();
 
@@ -433,16 +409,12 @@ public class OperacionesController : Controller
 
     /// <summary>
     /// Genera el certificado en PDF y lo devuelve como archivo descargable.
-    /// El Include es imprescindible: el generador necesita los datos del
-    /// cliente, el proveedor y el régimen, no sólo sus identificadores.
+    /// ObtenerOperacionAsync trae cliente, proveedor y régimen, que el generador
+    /// necesita: no le alcanzan sus identificadores.
     /// </summary>
     public async Task<IActionResult> Certificado(int id)
     {
-        var operacion = await _db.Operaciones
-            .Include(o => o.Cliente)
-            .Include(o => o.Proveedor)
-            .Include(o => o.Regimen)
-            .FirstOrDefaultAsync(o => o.Id == id);
+        var operacion = await _registro.ObtenerOperacionAsync(id);
 
         if (operacion is null) return NotFound();
         if (operacion.Anulada)
@@ -488,7 +460,7 @@ public class OperacionesController : Controller
         // Sólo se consideran proveedores de este cliente: con uno ajeno, la ayuda
         // se muestra como si no hubiera proveedor elegido.
         var proveedor = modelo.ProveedorId > 0
-            ? await _db.Proveedores.FirstOrDefaultAsync(p => p.Id == modelo.ProveedorId && p.ClienteId == modelo.ClienteId)
+            ? await _registro.ProveedorDelClienteAsync(modelo.ProveedorId, modelo.ClienteId)
             : null;
         // La versión que rige a la fecha de retención (regla 9). La ayuda dice desde
         // cuándo rigen esos valores, para que se vea con cuáles se va a calcular; y
@@ -515,10 +487,7 @@ public class OperacionesController : Controller
         // ayuda que la pantalla muestra debajo al elegir: CUIT y condición. La ayuda
         // del régimen no va acá porque depende del proveedor elegido: la arma
         // CompletarAvisosAsync y llega con el panel de cálculo.
-        var proveedores = await _db.Proveedores
-            .Where(p => p.ClienteId == clienteId && p.Activo)
-            .OrderBy(p => p.RazonSocial)
-            .ToListAsync();
+        var proveedores = await _registro.ProveedoresActivosAsync(clienteId);
 
         ViewBag.Proveedores = proveedores
             .Select(p => new OpcionConAyuda(p.Id, p.RazonSocial,
@@ -529,7 +498,7 @@ public class OperacionesController : Controller
         // el código. Qué versión se usa lo decide la fecha de retención, no el
         // operador. La descripción es la de la versión vigente hoy o, si no rige
         // ninguna, la de la más reciente.
-        var regimenes = await _db.Regimenes.ToListAsync();
+        var regimenes = await _registro.RegimenesAsync();
         var hoy = DateOnly.FromDateTime(DateTime.Today);
 
         ViewBag.Regimenes = regimenes
@@ -542,7 +511,7 @@ public class OperacionesController : Controller
             })
             .ToList();
 
-        var cliente = await _db.Clientes.FindAsync(clienteId);
+        var cliente = await _registro.ObtenerClienteAsync(clienteId);
         ViewBag.ClienteCuit = cliente?.Cuit;
     }
         /// <summary>

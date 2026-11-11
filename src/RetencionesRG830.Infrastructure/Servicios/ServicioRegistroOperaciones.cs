@@ -313,4 +313,84 @@ public class ServicioRegistroOperaciones
 
         return operacion;
     }
+
+    // -------------------------------------------------------------------------
+    // Consultas de las pantallas de Operaciones.
+    //
+    // Hasta noviembre de 2026 estaban escritas en OperacionesController. Se mudaron
+    // acá sin cambiarlas, como paso previo a la HU-15 (el rol Cliente ve sólo su
+    // empresa): ese filtro tiene que ir en el servicio, que es lo que los tests
+    // pueden probar, y para eso primero las consultas tienen que estar acá.
+    // Cada una es la misma que tenía el controlador, incluido FindAsync donde lo
+    // usaba: FindAsync mira primero las entidades que el contexto ya tiene en
+    // memoria, y el servicio comparte el contexto del pedido con el controlador.
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// El listado de operaciones, con cliente, proveedor y régimen. Con clienteId,
+    /// sólo las de ese cliente; sin él, las de todos.
+    /// </summary>
+    public Task<List<Operacion>> ListarOperacionesAsync(int? clienteId)
+    {
+        var query = _db.Operaciones
+            .Include(o => o.Cliente)
+            .Include(o => o.Proveedor)
+            .Include(o => o.Regimen)
+            .AsQueryable();
+
+        if (clienteId is not null)
+            query = query.Where(o => o.ClienteId == clienteId);
+
+        return query
+            // Dentro del mismo día, por orden de carga y no por número de certificado:
+            // las operaciones que no retuvieron no tienen número (regla 10).
+            .OrderByDescending(o => o.FechaRetencion)
+            .ThenByDescending(o => o.Id)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Una operación con cliente, proveedor y régimen, o null si no existe. La usan
+    /// el Detalle, el certificado (el generador necesita los datos del cliente, el
+    /// proveedor y el régimen, no sólo sus identificadores) y la pantalla de Anular.
+    /// </summary>
+    public Task<Operacion?> ObtenerOperacionAsync(int id) =>
+        _db.Operaciones
+            .Include(o => o.Cliente)
+            .Include(o => o.Proveedor)
+            .Include(o => o.Regimen)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+    /// <summary>El cliente, o null si no existe.</summary>
+    public async Task<Cliente?> ObtenerClienteAsync(int clienteId) =>
+        await _db.Clientes.FindAsync(clienteId);
+
+    /// <summary>El proveedor, o null si no existe. No mira a qué cliente pertenece.</summary>
+    public async Task<Proveedor?> ObtenerProveedorAsync(int proveedorId) =>
+        await _db.Proveedores.FindAsync(proveedorId);
+
+    /// <summary>
+    /// El proveedor si existe y es de ese cliente; si no, null. A diferencia de
+    /// ProveedorPerteneceAlClienteAsync, devuelve la entidad: la ayuda del régimen
+    /// necesita saber si está inscripto y qué tipo de persona es.
+    /// </summary>
+    public Task<Proveedor?> ProveedorDelClienteAsync(int proveedorId, int clienteId) =>
+        _db.Proveedores.FirstOrDefaultAsync(p => p.Id == proveedorId && p.ClienteId == clienteId);
+
+    /// <summary>
+    /// Los proveedores activos del cliente, por razón social: los que ofrece el
+    /// desplegable de Nueva operación.
+    /// </summary>
+    public Task<List<Proveedor>> ProveedoresActivosAsync(int clienteId) =>
+        _db.Proveedores
+            .Where(p => p.ClienteId == clienteId && p.Activo)
+            .OrderBy(p => p.RazonSocial)
+            .ToListAsync();
+
+    /// <summary>
+    /// Todas las versiones de todos los regímenes, sin los tramos de escala. El
+    /// desplegable de Nueva operación las agrupa por código.
+    /// </summary>
+    public Task<List<Regimen>> RegimenesAsync() =>
+        _db.Regimenes.ToListAsync();
 }
