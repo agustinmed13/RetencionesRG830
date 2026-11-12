@@ -1,3 +1,4 @@
+using RetencionesRG830.Application.Servicios;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -111,12 +112,12 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task La_segunda_operacion_del_mes_acumula_y_descuenta_lo_ya_retenido()
     {
-        var primera = await _servicio.RegistrarAsync(
+        var primera = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(414049.59m, new DateOnly(2026, 8, 4), 2514));
 
         Assert.Equal(3800.9918m, primera.MontoRetenido, 4);
 
-        var segunda = await _servicio.RegistrarAsync(
+        var segunda = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(87190.09m, new DateOnly(2026, 8, 12), 2515));
 
         Assert.Equal(1743.8018m, segunda.MontoRetenido, 4);
@@ -129,10 +130,10 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task El_acumulado_no_cruza_de_un_mes_al_siguiente()
     {
-        await _servicio.RegistrarAsync(
+        await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(414049.59m, new DateOnly(2026, 8, 4), 2514));
 
-        var deSeptiembre = await _servicio.RegistrarAsync(
+        var deSeptiembre = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(414049.59m, new DateOnly(2026, 9, 3), 2600));
 
         Assert.Equal(3800.9918m, deSeptiembre.MontoRetenido, 4);
@@ -153,11 +154,11 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task Los_certificados_se_numeran_correlativamente()
     {
-        var primera = await _servicio.RegistrarAsync(
+        var primera = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 8, 4), 1));
-        var segunda = await _servicio.RegistrarAsync(
+        var segunda = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 8, 5), 2));
-        var tercera = await _servicio.RegistrarAsync(
+        var tercera = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 8, 6), 3));
 
         Assert.Equal(1, primera.NumeroCertificado);
@@ -190,10 +191,10 @@ public class ServicioRegistroOperacionesTests : IDisposable
         var operacion = NuevaOperacion(500000m, new DateOnly(2026, 9, 10), 1);
         operacion.ProveedorId = proveedorAjeno.Id; // cliente Metalúrgica, proveedor de Agroinsumos
 
-        Assert.False(await _servicio.ProveedorPerteneceAlClienteAsync(proveedorAjeno.Id, _clienteId));
-        Assert.True(await _servicio.ProveedorPerteneceAlClienteAsync(_proveedorId, _clienteId));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.SimularAsync(operacion));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(operacion));
+        Assert.False(await _servicio.ProveedorPerteneceAlClienteAsync(AlcanceEmpresa.Estudio, proveedorAjeno.Id, _clienteId));
+        Assert.True(await _servicio.ProveedorPerteneceAlClienteAsync(AlcanceEmpresa.Estudio, _proveedorId, _clienteId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.SimularAsync(AlcanceEmpresa.Estudio, operacion));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, operacion));
         Assert.Equal(0, await _db.Operaciones.CountAsync());
     }
 
@@ -211,7 +212,7 @@ public class ServicioRegistroOperacionesTests : IDisposable
         cliente!.Activo = false;
         await _db.SaveChangesAsync();
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(500000m, new DateOnly(2026, 9, 10), 1)));
 
         Assert.Contains("dado de baja", error.Message);
@@ -226,19 +227,19 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task El_comprobante_repetido_se_detecta_pero_no_se_bloquea()
     {
-        var primeraCuota = await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
+        var primeraCuota = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
 
         var segundaCuota = NuevaOperacion(300000m, new DateOnly(2026, 9, 25), 777);
-        var repetidas = await _servicio.OperacionesConMismoComprobanteAsync(segundaCuota);
+        var repetidas = await _servicio.OperacionesConMismoComprobanteAsync(AlcanceEmpresa.Estudio, segundaCuota);
 
         Assert.Single(repetidas);
         Assert.Equal(primeraCuota.NumeroCertificado, repetidas[0].NumeroCertificado);
 
-        var registrada = await _servicio.RegistrarAsync(segundaCuota);
+        var registrada = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, segundaCuota);
         Assert.Equal(2, registrada.NumeroCertificado);
 
         // Otro número de comprobante no se considera repetido.
-        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(
+        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 26), 778)));
     }
 
@@ -249,12 +250,12 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task Una_operacion_anulada_no_cuenta_como_comprobante_repetido()
     {
-        var conError = await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
-        await _servicio.AnularAsync(conError.Id, "Importe mal cargado", usuarioId: 1);
+        var conError = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 777));
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, conError.Id, "Importe mal cargado", usuarioId: 1);
 
         var corregida = NuevaOperacion(350000m, new DateOnly(2026, 9, 10), 777);
 
-        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(corregida));
+        Assert.Empty(await _servicio.OperacionesConMismoComprobanteAsync(AlcanceEmpresa.Estudio, corregida));
     }
 
     // --- Regla 10: sin retención no hay certificado ---------------------------
@@ -268,7 +269,7 @@ public class ServicioRegistroOperacionesTests : IDisposable
     public async Task Una_operacion_que_no_retiene_se_registra_sin_certificado()
     {
         // $ 100.000 no llega al monto no sujeto: retención $ 0.
-        var operacion = await _servicio.RegistrarAsync(
+        var operacion = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(100000m, new DateOnly(2026, 9, 4), 1));
 
         Assert.Equal(0m, operacion.MontoRetenido);
@@ -285,9 +286,9 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task La_operacion_sin_certificado_suma_al_acumulado_del_mes()
     {
-        var sinRetencion = await _servicio.RegistrarAsync(
+        var sinRetencion = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(100000m, new DateOnly(2026, 9, 4), 1));
-        var siguiente = await _servicio.RegistrarAsync(
+        var siguiente = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(200000m, new DateOnly(2026, 9, 18), 2));
 
         Assert.Null(sinRetencion.NumeroCertificado);
@@ -302,14 +303,14 @@ public class ServicioRegistroOperacionesTests : IDisposable
     public async Task Los_certificados_no_dejan_saltos_cuando_una_operacion_no_retiene()
     {
         // $ 300.000: retiene $ 1.520.
-        var primera = await _servicio.RegistrarAsync(
+        var primera = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 1));
         // + $ 5.000: base $ 305.000, determinada $ 1.620, menos $ 1.520 ya retenidos
         // = $ 100, debajo del mínimo de $ 240: retención $ 0.
-        var segunda = await _servicio.RegistrarAsync(
+        var segunda = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(5000m, new DateOnly(2026, 9, 10), 2));
         // + $ 300.000: base $ 605.000, determinada $ 7.620, menos $ 1.520 = $ 6.100.
-        var tercera = await _servicio.RegistrarAsync(
+        var tercera = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 20), 3));
 
         Assert.Equal(1, primera.NumeroCertificado);
@@ -325,11 +326,11 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task El_numero_de_una_operacion_anulada_no_se_reutiliza()
     {
-        var anulada = await _servicio.RegistrarAsync(
+        var anulada = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 1));
-        await _servicio.AnularAsync(anulada.Id, "Importe mal cargado", usuarioId: 1);
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, anulada.Id, "Importe mal cargado", usuarioId: 1);
 
-        var siguiente = await _servicio.RegistrarAsync(
+        var siguiente = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 10), 2));
 
         Assert.Equal(1, (await _db.Operaciones.FindAsync(anulada.Id))!.NumeroCertificado);
@@ -339,11 +340,11 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task Anular_una_operacion_sin_certificado_la_saca_del_acumulado()
     {
-        var sinRetencion = await _servicio.RegistrarAsync(
+        var sinRetencion = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(100000m, new DateOnly(2026, 9, 4), 1));
-        await _servicio.AnularAsync(sinRetencion.Id, "Comprobante equivocado", usuarioId: 1);
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, sinRetencion.Id, "Comprobante equivocado", usuarioId: 1);
 
-        var siguiente = await _servicio.RegistrarAsync(
+        var siguiente = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(200000m, new DateOnly(2026, 9, 18), 2));
 
         // Sin la anulada, la base es $ 200.000: no llega al monto no sujeto. Con ella
@@ -364,14 +365,14 @@ public class ServicioRegistroOperacionesTests : IDisposable
     [Fact]
     public async Task SICORE_informa_solo_las_operaciones_con_certificado_y_vigentes()
     {
-        var conCertificado = await _servicio.RegistrarAsync(
+        var conCertificado = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 1));
-        var sinCertificado = await _servicio.RegistrarAsync(
+        var sinCertificado = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(5000m, new DateOnly(2026, 9, 10), 2));
-        var anulada = await _servicio.RegistrarAsync(
+        var anulada = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 20), 3));
-        await _servicio.AnularAsync(anulada.Id, "Importe mal cargado", usuarioId: 1);
-        var deOctubre = await _servicio.RegistrarAsync(
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, anulada.Id, "Importe mal cargado", usuarioId: 1);
+        var deOctubre = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 10, 2), 4));
 
         var informadas = await _servicio.OperacionesParaSicoreAsync(
@@ -397,7 +398,7 @@ public class ServicioRegistroOperacionesTests : IDisposable
     public async Task Un_cliente_dado_de_baja_sigue_disponible_para_el_SICORE_del_mes_anterior()
     {
         // Septiembre: una retención con certificado.
-        var deSeptiembre = await _servicio.RegistrarAsync(
+        var deSeptiembre = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 1));
         Assert.NotNull(deSeptiembre.NumeroCertificado);
 
@@ -432,21 +433,21 @@ public class ServicioRegistroOperacionesTests : IDisposable
     public async Task El_resumen_de_SICORE_cuenta_las_informadas_y_las_que_quedan_afuera()
     {
         // Base $ 100.000: no llega al monto no sujeto. Sin certificado; después se anula.
-        var anuladaSinCertificado = await _servicio.RegistrarAsync(
+        var anuladaSinCertificado = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(100000m, new DateOnly(2026, 9, 2), 1));
         // Base $ 400.000: retiene $ 3.520. Con certificado: es la que se informa.
-        var informada = await _servicio.RegistrarAsync(
+        var informada = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 4), 2));
         // Base $ 405.000: faltan retener $ 100, debajo del mínimo de $ 240.
-        var sinCertificado = await _servicio.RegistrarAsync(
+        var sinCertificado = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(5000m, new DateOnly(2026, 9, 10), 3));
         // Base $ 705.000: retiene $ 6.100. Con certificado; después se anula.
-        var anuladaConCertificado = await _servicio.RegistrarAsync(
+        var anuladaConCertificado = await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, 
             NuevaOperacion(300000m, new DateOnly(2026, 9, 20), 4));
-        await _servicio.RegistrarAsync(NuevaOperacion(300000m, new DateOnly(2026, 10, 2), 5));
+        await _servicio.RegistrarAsync(AlcanceEmpresa.Estudio, NuevaOperacion(300000m, new DateOnly(2026, 10, 2), 5));
 
-        await _servicio.AnularAsync(anuladaSinCertificado.Id, "Comprobante equivocado", usuarioId: 1);
-        await _servicio.AnularAsync(anuladaConCertificado.Id, "Importe mal cargado", usuarioId: 1);
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, anuladaSinCertificado.Id, "Comprobante equivocado", usuarioId: 1);
+        await _servicio.AnularAsync(AlcanceEmpresa.Estudio, anuladaConCertificado.Id, "Importe mal cargado", usuarioId: 1);
 
         // Que el escenario sea el que dicen los comentarios.
         Assert.Null(anuladaSinCertificado.NumeroCertificado);

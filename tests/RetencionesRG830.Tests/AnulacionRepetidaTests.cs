@@ -1,3 +1,4 @@
+using RetencionesRG830.Application.Servicios;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -61,7 +62,7 @@ public class AnulacionRepetidaTests : IDisposable
         db.SaveChanges();
 
         var fecha = new DateOnly(2026, 9, 10);
-        var operacion = new ServicioRegistroOperaciones(db).RegistrarAsync(new Operacion
+        var operacion = new ServicioRegistroOperaciones(db).RegistrarAsync(AlcanceEmpresa.Estudio, new Operacion
         {
             ClienteId = cliente.Id,
             ProveedorId = proveedor.Id,
@@ -84,7 +85,7 @@ public class AnulacionRepetidaTests : IDisposable
     private async Task Anular(string motivo, int usuarioId)
     {
         using var db = _base.NuevoContexto();
-        await new ServicioRegistroOperaciones(db).AnularAsync(_operacionId, motivo, usuarioId);
+        await new ServicioRegistroOperaciones(db).AnularAsync(AlcanceEmpresa.Estudio, _operacionId, motivo, usuarioId);
     }
 
     private Operacion LeerGuardada()
@@ -99,7 +100,7 @@ public class AnulacionRepetidaTests : IDisposable
         using var db = _base.NuevoContexto();
         var cargadaAntes = await db.Operaciones.SingleAsync(o => o.Id == _operacionId);
 
-        var devuelta = await new ServicioRegistroOperaciones(db).AnularAsync(_operacionId, MotivoPrimero, UsuarioPrimero);
+        var devuelta = await new ServicioRegistroOperaciones(db).AnularAsync(AlcanceEmpresa.Estudio, _operacionId, MotivoPrimero, UsuarioPrimero);
 
         // Lo que devuelve el servicio, y la entidad que el contexto ya tenía en memoria,
         // tienen que reflejar la anulación igual que la base.
@@ -151,7 +152,7 @@ public class AnulacionRepetidaTests : IDisposable
 
         using var db = new RetencionesRG830DbContext(opciones);
         var error = await Record.ExceptionAsync(
-            () => new ServicioRegistroOperaciones(db).AnularAsync(_operacionId, MotivoSegundo, UsuarioSegundo));
+            () => new ServicioRegistroOperaciones(db).AnularAsync(AlcanceEmpresa.Estudio, _operacionId, MotivoSegundo, UsuarioSegundo));
 
         Assert.True(interceptor.SeDisparo, "El interceptor nunca vio el UPDATE: el test no probó nada.");
         var guardada = LeerGuardada();
@@ -164,16 +165,18 @@ public class AnulacionRepetidaTests : IDisposable
     /// <summary>
     /// Una operación que no existe es otro caso, y no se le puede decir al operador que
     /// "ya estaba anulada".
+    ///
+    /// Desde la HU-15 lanza OperacionNoEncontradaException, que la pantalla convierte en
+    /// 404. Antes lanzaba una InvalidOperationException genérica, que nadie capturaba, y
+    /// el operador veía un error 500.
     /// </summary>
     [Fact]
     public async Task Anular_una_operacion_que_no_existe_no_se_confunde_con_una_ya_anulada()
     {
         using var db = _base.NuevoContexto();
 
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => new ServicioRegistroOperaciones(db).AnularAsync(999_999, MotivoPrimero, UsuarioPrimero));
-
-        Assert.IsNotType<OperacionYaAnuladaException>(error);
+        await Assert.ThrowsAsync<OperacionNoEncontradaException>(
+            () => new ServicioRegistroOperaciones(db).AnularAsync(AlcanceEmpresa.Estudio, 999_999, MotivoPrimero, UsuarioPrimero));
     }
 
     /// <summary>

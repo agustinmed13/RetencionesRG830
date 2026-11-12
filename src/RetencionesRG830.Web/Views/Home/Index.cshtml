@@ -10,9 +10,10 @@
 @{
     ViewData["Title"] = "Inicio";
 
-    // Hoy todas las secciones exigen el rol Estudio. Ver "Pendiente: habilitar el
-    // rol Cliente" en CLAUDE.md.
+    // Cada rol ve los accesos a las secciones que puede usar (HU-15): el Cliente,
+    // Operaciones y Simulador, sobre su empresa; el Estudio, todo.
     var esEstudio = User.IsInRole("Estudio");
+    var esCliente = User.IsInRole("Cliente");
 }
 
 <h1>Te damos la bienvenida a SIGERE</h1>
@@ -37,10 +38,26 @@
         </a>
     </div>
 }
+else if (esCliente)
+{
+    @* El Cliente sí tiene acceso directo a "Nueva operación": opera sobre una sola
+       empresa, la suya, y el servidor la toma de su usuario (no viaja en el enlace). *@
+    <div class="tarjeta acciones">
+        <a class="boton boton-primario" asp-controller="Operaciones" asp-action="Create">
+            <svg class="icono icono-grueso" width="16" height="16" viewBox="0 0 24 24"><use href="#i-plus" /></svg>Nueva operación
+        </a>
+        <a class="boton boton-secundario" asp-controller="Operaciones" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-file" /></svg>Operaciones
+        </a>
+        <a class="boton boton-secundario" asp-controller="Simulador" asp-action="Index">
+            <svg class="icono" width="16" height="16" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Simulador
+        </a>
+    </div>
+}
 else
 {
-    @* Un usuario Cliente todavía no tiene secciones habilitadas: en lugar de botones
-       que llevarían a "Acceso denegado", se le explica la situación. *@
+    @* Un usuario sin un rol conocido: en lugar de botones que llevarían a "Acceso
+       denegado", se le explica la situación. *@
     <div class="tarjeta">
         <div class="tarjeta-cuerpo">
             <p class="texto-atenuado">

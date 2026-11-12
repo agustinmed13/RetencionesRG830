@@ -1,10 +1,13 @@
 @using System.Security.Claims
 @*
     Pantalla a la que ASP.NET manda a un usuario que inició sesión pero no tiene el rol
-    que pide la página (Program.cs, AccessDeniedPath). Hoy le pasa al rol Cliente con
-    cualquier pantalla salvo el Inicio: todos los demás controladores exigen el rol
-    Estudio. Es la que demuestra que los roles se controlan en el servidor y no sólo
-    ocultando enlaces del menú.
+    que pide la página (Program.cs, AccessDeniedPath). Le pasa al rol Cliente con las
+    funciones del Estudio: Clientes, Proveedores, Regímenes y SICORE. Es la que demuestra
+    que los roles se controlan en el servidor y no sólo ocultando enlaces del menú.
+
+    Distinto de un dato de otra empresa (HU-15): la operación de otra empresa no es una
+    función prohibida sino un dato que, para ese usuario, no existe. Eso da "no
+    encontrado" (404), no esta pantalla: decir "no tenés permiso" confirmaría que existe.
 
     No tiene pantalla propia en docs/prototipo-interfaz.html: se arma con los mismos
     componentes que la página de error (cabecera, aviso y panel de texto).
@@ -47,7 +50,7 @@
         {
             <p>La página que pediste es <b>@paginaPedida</b>.</p>
         }
-        <p>Cada pantalla del sistema está habilitada para ciertos roles, y el servidor lo controla en cada pedido: no alcanza con escribir la dirección. Las pantallas de operación y de administración son del rol <b>Estudio</b>.</p>
+        <p>Cada pantalla del sistema está habilitada para ciertos roles, y el servidor lo controla en cada pedido: no alcanza con escribir la dirección. La administración de clientes, proveedores y regímenes, y el archivo para SICORE, son del rol <b>Estudio</b>.</p>
         <p>Si necesitás acceder, pedíselo a quien administra el sistema.</p>
     </div>
     <div class="pie-formulario">

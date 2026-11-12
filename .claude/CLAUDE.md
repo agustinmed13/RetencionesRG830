@@ -17,7 +17,7 @@ convención sin excepciones; mantenerla.
 
 ```bash
 dotnet run --project src/RetencionesRG830.Web   # http://localhost:5149
-dotnet test                                      # 269 tests: 259 verdes y 10 omitidos (ver Tests)
+dotnet test                                      # 292 tests: 282 verdes y 10 omitidos (ver Tests)
 ```
 
 La base es **SQL Server** (desde octubre de 2026; antes SQLite). Se crea sola en el primer
@@ -42,7 +42,8 @@ Usuarios de prueba:
 | Usuario | Contraseña | Rol |
 |---|---|---|
 | `estudio@ejemplo.com` | `Estudio123!` | Estudio (acceso total) |
-| `operador@cliente.com` | `Cliente123!` | Cliente (sólo su empresa) |
+| `operador@cliente.com` | `Cliente123!` | Cliente: Metalúrgica del Valle S.A. |
+| `agroinsumos@ejemplo.com` | `Cliente123!` | Cliente: Agroinsumos del Norte S.R.L. |
 
 ---
 
@@ -261,7 +262,7 @@ No tocar ninguna de las dos piezas sin correr los tests.
 
 ## Tests
 
-269 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
+292 tests. Incluyen **golden tests**: cinco operaciones reales que el estudio ya practicó y
 presentó ante AFIP, reproducidas hasta el cuarto decimal, y las cinco líneas del archivo de
 SICORE reproducidas carácter por carácter. Son 11: los cinco cálculos
 (`Reproduce_los_calculos_reales_de_la_planilla`), las cinco líneas
@@ -276,16 +277,16 @@ sólo da correcto si se acumula, se aplica el piso una sola vez y se descuenta l
 
 ### Dos motores: SQLite por defecto, SQL Server antes de commitear persistencia
 
-Los ~40 tests que usan base la piden a `BaseDePrueba` y corren en cualquiera de los dos:
+Los ~100 tests que usan base (noviembre de 2026) la piden a `BaseDePrueba` y corren en cualquiera de los dos:
 
 - **Por defecto, SQLite en memoria:** ~1 segundo, anda en cualquier máquina. Pero **no ve
   los problemas propios de SQL Server**: SQLite guarda los decimales como texto y nunca
-  recorta nada. Da 259 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
+  recorta nada. Da 282 verdes y 10 omitidos: los marcados `[HechoEnSqlServer]`, que figuran
   como omitidos, no como aprobados. Son los 3 que miran el catálogo de SQL Server, los 5 de
   `MigracionNormalizaCuitTests` y los 2 de `CodigosComprobanteGuardadosTests`, que prueban el
   SQL de esas migraciones.
 - **Con la variable `SIGERE_PRUEBAS_SQLSERVER`**, SQL Server: cada test crea una base con nombre
-  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 269
+  único, le aplica **la migración real** (`Migrate`, no `EnsureCreated`) y la borra. 292
   verdes. El tiempo depende del servidor: ~7 segundos con SQL Server Express cuando responde
   bien, y entre 40 segundos y 1 minuto y medio con LocalDB (medido en noviembre de 2026). Si tarda
   minutos y aparecen timeouts de conexión, mirar el servidor antes que los tests: el
@@ -464,21 +465,81 @@ el contexto tenga en memoria. Lo fija `AnulacionRepetidaTests`, que usa un inter
 a la primera persona justo antes del UPDATE de la segunda: con dos tareas en paralelo el resultado
 dependería del azar. **Lección:** "mirar y después actuar" no protege de dos pedidos a la vez.
 
-**Pendiente: POST a Anular con un Id que no existe da error 500.** El GET da 404. No se llega desde
-la interfaz: hace falta un pedido armado a mano.
+**Resuelto (noviembre de 2026, con la HU-15): POST a Anular con un Id que no existe daba error
+500.** Ahora `AnularAsync` lanza `OperacionNoEncontradaException` y el controlador responde 404,
+igual que el GET.
 
-### Pendiente: habilitar el rol Cliente (RF-04, RN-17)
+### Resuelto: el rol Cliente opera sobre su empresa (HU-15, RF-04, RN-17, noviembre de 2026)
 
-Corresponde a los requerimientos **RF-04** y **RN-17** del análisis. Hoy todos los
-controladores tienen `[Authorize(Roles = "Estudio")]`, así que un usuario Cliente sólo puede
-iniciar sesión y ver el Inicio. Por eso el menú lateral oculta al rol Cliente los dos grupos
-(Operación y Administración): mostrar enlaces que devuelven "Acceso denegado" es peor que no
-mostrarlos.
+**Alcance**, según el cuadro de casos de uso del análisis. El rol Cliente, siempre y sólo sobre su
+propia empresa: consulta operaciones, registra, simula, emite el certificado y anula. No puede
+gestionar clientes ni proveedores, administrar regímenes ni generar el archivo para SICORE: eso
+sigue siendo exclusivo del Estudio.
 
-Cuando se implemente, **el filtro por `ClienteId` va en las consultas del servidor**, no
-alcanza con ocultar enlaces en la interfaz. Un enlace oculto no impide escribir la URL a
-mano: cada consulta de operaciones, proveedores, certificados y SICORE tiene que restringirse
-a la empresa del usuario autenticado.
+**Dónde está el filtro: en el servicio, no en el controlador.** El proyecto de tests no referencia
+la Web, así que un filtro en el controlador no se puede probar, y es donde ya viven las demás
+reglas.
+- `AlcanceEmpresa` (Application) dice qué empresas ve el usuario: `Estudio` (todas),
+  `DelCliente(id)` o `Ninguna` (un Cliente sin empresa: un dato mal cargado, no ve nada).
+- Cada método de `ServicioRegistroOperaciones` con datos de una empresa lo recibe como **primer
+  parámetro, obligatorio**. A propósito no hay una versión sin alcance que devuelva todo: un
+  olvido es un error de compilación, no una fuga.
+- El controlador sólo arma el alcance desde la cookie (`User.Alcance()`, en
+  `Web/Infraestructura/AlcanceDelUsuario.cs`, sin test porque está en la Web) y se lo pasa.
+  `OperacionesController` no recibe el `DbContext`: todas sus consultas pasan por el servicio.
+- No reciben alcance los métodos sin datos de una empresa (`VersionVigenteAsync`,
+  `RegimenesAsync`) ni los del SICORE, que exige el rol Estudio en el controlador.
+
+**Un dato de otra empresa no existe para ese usuario: 404, nunca "Acceso denegado".** Decir "no
+tenés permiso para la operación 7" confirma que la operación 7 existe. En cambio, una **función**
+del Estudio (`/Clientes`, `/Proveedores`, `/Regimenes`, `/Sicore`) sí da Acceso denegado: ahí
+no se pregunta por un dato ajeno, se pide algo que no le corresponde.
+
+**Las fugas que había que cerrar**, además del listado, el detalle, el certificado y Anular. Un
+Cliente que cambia el cliente oculto del formulario de Nueva operación habría visto, de otra
+empresa:
+- el acumulado del mes y lo ya retenido, en el cálculo en vivo (`SimularAsync`);
+- el número de certificado y la fecha, en el aviso de comprobante repetido
+  (`OperacionesConMismoComprobanteAsync`);
+- cuántos certificados emitió, en el próximo número (`SiguienteNumeroCertificadoAsync`).
+
+`CalcularAcumuladoDelMesAsync` pasó a ser privado: devolvía datos de una empresa sin recibir
+alcance.
+
+**Anular:** la empresa va en el `WHERE` del UPDATE, junto al control de concurrencia. Una
+operación ajena da `OperacionNoEncontradaException` (404) aunque ya esté anulada: "ya estaba
+anulada" confirmaría que existe.
+
+**Nueva operación:** para un Cliente, el servidor usa siempre su empresa. Si el pedido no trae
+cliente, toma la suya (el Inicio le ofrece "Nueva operación" directo). Si trae otra, la rechaza
+igual que a un cliente inexistente.
+
+**Registrar tiene tres controles**, y conviene saberlo antes de tocar uno: el de `RegistrarAsync`,
+el de `SimularAsync` (que `RegistrarAsync` llama) y el de `SiguienteNumeroCertificadoAsync`,
+que sólo corre si la operación emite certificado. Por eso el test de registrar a nombre de otra
+empresa prueba también una operación que no llega al mínimo. Con sólo una que emitía
+certificado, el test seguía en verde aunque faltaran los dos primeros controles (se verificó
+metiendo el defecto).
+
+**La interfaz:** el menú le muestra al Cliente el grupo Operación (Operaciones y Simulador, sin
+SICORE) y le oculta Administración. Ocultar es comodidad, no seguridad. El listado no le ofrece
+"Ver todos los clientes". El Simulador no tiene filtro porque no lee datos de ninguna empresa:
+sólo régimen, importes y condición, escritos en el formulario.
+
+**Tests:** `AislamientoEmpresasTests` cubre:
+- que un Cliente no vea nada de otra empresa, en los dos sentidos;
+- las tres fugas;
+- que no registre ni anule a nombre de otra empresa;
+- que opere sobre la suya;
+- que el Estudio siga viendo y pudiendo todo;
+- que un Cliente sin empresa no vea nada.
+
+Cada control se verificó metiendo el defecto y viéndolo fallar.
+
+**Datos de prueba:** el seed agrega cuatro operaciones de octubre de 2026 a Metalúrgica del Valle
+(antes no tenía ninguna, y su operador entraba a un listado vacío) y el usuario
+`agroinsumos@ejemplo.com`, de Agroinsumos del Norte. Los dos métodos tienen su propio control y
+llegan también a las bases ya creadas.
 
 ### Resuelto: la regla 9 (vigencia de los regímenes) en el cálculo
 

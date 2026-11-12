@@ -12,6 +12,8 @@ public static class DbInitializer
         SeedUsuariosDePrueba(context);
         SeedProveedoresDePrueba(context);
         SeedSegundoClienteDePrueba(context);
+        SeedOperacionesDeMetalurgica(context);
+        SeedOperadorDeAgroinsumos(context);
     }
 
     private static void SeedRegimenes(RetencionesRG830DbContext context)
@@ -275,10 +277,100 @@ public static class DbInitializer
         };
         foreach (var operacion in operaciones)
         {
-            registro.RegistrarAsync(operacion).GetAwaiter().GetResult();
+            registro.RegistrarAsync(AlcanceEmpresa.Estudio, operacion).GetAwaiter().GetResult();
         }
 
         Console.WriteLine("Se cargó el cliente Agroinsumos del Norte S.R.L. con tres proveedores y cuatro operaciones.");
+    }
+
+    /// <summary>
+    /// Operaciones para Metalúrgica del Valle, la empresa de operador@cliente.com. Sin
+    /// ellas, ese usuario entraba a un listado vacío, que no demuestra la HU-15 (cada
+    /// empresa ve sólo lo suyo). Datos inventados; los importes son redondos a propósito,
+    /// para que no se confundan con los de la planilla real.
+    ///
+    /// Octubre de 2026, con los mismos casos que se quieren mostrar:
+    /// - Gómez, régimen 78, dos pagos en el mes: el segundo acumula y descuenta lo ya
+    ///   retenido. Retienen $ 5.920 y $ 3.600.
+    /// - Servicios del Sur, régimen 94: retiene $ 5.656,60.
+    /// - Ramírez, régimen 94, $ 70.000: queda debajo del mínimo y se registra sin
+    ///   certificado (regla 10).
+    /// Esas cifras valen para una base nueva: si Metalúrgica ya tenía operaciones de
+    /// octubre de 2026, el acumulado las incluye.
+    ///
+    /// Tiene su propio control, como SeedSegundoClienteDePrueba, para llegar también a
+    /// las bases ya creadas: no carga nada si ya existe la primera de estas operaciones
+    /// (la factura 00007-00001201 de Gómez). Si falta algún dato del que depende
+    /// (el cliente, uno de sus proveedores, el usuario Estudio, un régimen), no carga
+    /// nada.
+    /// </summary>
+    private static void SeedOperacionesDeMetalurgica(RetencionesRG830DbContext context)
+    {
+        var metalurgica = context.Clientes.FirstOrDefault(c => c.Cuit == "30612345674");
+        var estudio = context.Usuarios.FirstOrDefault(u => u.Rol == RolUsuario.Estudio);
+        if (metalurgica is null || estudio is null) return;
+
+        Proveedor? DeMetalurgica(string cuit) =>
+            context.Proveedores.FirstOrDefault(p => p.ClienteId == metalurgica.Id && p.Cuit == cuit);
+        var gomez = DeMetalurgica("20314567898");
+        var servicios = DeMetalurgica("30645678911");
+        var ramirez = DeMetalurgica("27325678947");
+        if (gomez is null || servicios is null || ramirez is null) return;
+
+        if (context.Operaciones.Any(o => o.ClienteId == metalurgica.Id && o.ProveedorId == gomez.Id
+                                      && o.PuntoVenta == 7 && o.NumeroComprobante == 1201))
+            return; // ya está cargado, no hacemos nada.
+
+        var registro = new Servicios.ServicioRegistroOperaciones(context);
+        Regimen? Vigente(int codigo, DateOnly fecha) =>
+            registro.VersionVigenteAsync(codigo, fecha).GetAwaiter().GetResult();
+
+        var operaciones = new (Proveedor Proveedor, int Codigo, int PuntoVenta, long Numero, DateOnly Fecha, decimal Total, decimal Gravado)[]
+        {
+            (gomez,     78, 7, 1201, new DateOnly(2026, 10, 6),  629_200m, 520_000m),
+            (servicios, 94, 3,  845, new DateOnly(2026, 10, 9),  423_500m, 350_000m),
+            (ramirez,   94, 1,   77, new DateOnly(2026, 10, 14),  70_000m,  70_000m),
+            (gomez,     78, 7, 1236, new DateOnly(2026, 10, 20), 217_800m, 180_000m),
+        };
+
+        // Primero se controla que haya versión vigente para todas: así no queda la mitad
+        // cargada si falta un régimen.
+        var versiones = operaciones.Select(o => Vigente(o.Codigo, o.Fecha)).ToList();
+        if (versiones.Any(v => v is null)) return;
+
+        for (var i = 0; i < operaciones.Length; i++)
+        {
+            var o = operaciones[i];
+            registro.RegistrarAsync(AlcanceEmpresa.Estudio, NuevaOperacion(
+                metalurgica, o.Proveedor, versiones[i]!, 1, o.PuntoVenta, o.Numero, o.Fecha, o.Total, o.Gravado, estudio))
+                .GetAwaiter().GetResult();
+        }
+
+        Console.WriteLine("Se cargaron cuatro operaciones de octubre de 2026 para Metalúrgica del Valle S.A.");
+    }
+
+    /// <summary>
+    /// Un segundo usuario del rol Cliente, de Agroinsumos del Norte: con él y con
+    /// operador@cliente.com (Metalúrgica del Valle) se muestra que cada empresa ve sólo
+    /// lo suyo, en los dos sentidos (HU-15). Correo de un dominio de ejemplo, inventado.
+    /// Con su propio control, para llegar también a las bases ya creadas.
+    /// </summary>
+    private static void SeedOperadorDeAgroinsumos(RetencionesRG830DbContext context)
+    {
+        const string email = "agroinsumos@ejemplo.com";
+        var agroinsumos = context.Clientes.FirstOrDefault(c => c.Cuit == "30718452364");
+        if (agroinsumos is null || context.Usuarios.Any(u => u.Email == email)) return;
+
+        context.Usuarios.Add(new Usuario
+        {
+            Email = email,
+            PasswordHash = PasswordHasher.Hash("Cliente123!"),
+            Rol = RolUsuario.Cliente,
+            ClienteId = agroinsumos.Id
+        });
+        context.SaveChanges();
+
+        Console.WriteLine($"Se creó el usuario {email} (rol Cliente) de Agroinsumos del Norte S.R.L.");
     }
 
     private static Operacion NuevaOperacion(Cliente cliente, Proveedor proveedor, Regimen regimen,

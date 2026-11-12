@@ -23,6 +23,9 @@
     string? clienteRazonSocial = ViewBag.ClienteRazonSocial;
     var clienteActivo = ViewBag.ClienteActivo is true;
     var todosLosClientes = clienteId is null;
+    // El rol Cliente ve sólo su empresa (HU-15): no se le ofrece "Ver todos los
+    // clientes". El listado ya viene filtrado por el servicio; esto es sólo la pantalla.
+    var veTodasLasEmpresas = ViewBag.VeTodasLasEmpresas is true;
 
     var operaciones = Model.ToList();
     var anuladas = operaciones.Count(o => o.Anulada);
@@ -43,15 +46,23 @@
     }
 </div>
 
-@if (todosLosClientes)
+@if (todosLosClientes && veTodasLasEmpresas)
 {
     <p class="subtitulo-pagina">Todos los clientes.</p>
+}
+else if (todosLosClientes)
+{
+    @* Un usuario Cliente sin empresa asociada: un dato mal cargado. No ve nada. *@
+    <p class="subtitulo-pagina">Tu usuario no tiene una empresa asociada: comunicate con el estudio.</p>
 }
 else
 {
     <p class="subtitulo-pagina">
-        Agente de retención: <b>@(clienteRazonSocial ?? "cliente inexistente")</b> ·
-        <a class="enlace" asp-action="Index">Ver todos los clientes</a>
+        Agente de retención: <b>@(clienteRazonSocial ?? "cliente inexistente")</b>
+        @if (veTodasLasEmpresas)
+        {
+            <text>· <a class="enlace" asp-action="Index">Ver todos los clientes</a></text>
+        }
     </p>
 }
 

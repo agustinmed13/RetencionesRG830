@@ -1,3 +1,4 @@
+using RetencionesRG830.Application.Servicios;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -89,7 +90,7 @@ public class PersistenciaTests : IDisposable
     private async Task<Operacion> RegistrarEnUnPedidoNuevo(Operacion operacion)
     {
         using var db = _base.NuevoContexto();
-        return await new ServicioRegistroOperaciones(db).RegistrarAsync(operacion);
+        return await new ServicioRegistroOperaciones(db).RegistrarAsync(AlcanceEmpresa.Estudio, operacion);
     }
 
     /// <summary>

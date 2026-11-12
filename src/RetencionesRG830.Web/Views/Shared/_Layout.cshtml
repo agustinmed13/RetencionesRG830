@@ -5,10 +5,12 @@
     string Activo(string controlador) =>
         string.Equals(controladorActual, controlador, StringComparison.OrdinalIgnoreCase) ? "activo" : "";
 
-    // Hoy todos los controladores, salvo Home y Cuenta, exigen el rol Estudio. Un usuario
-    // Cliente ve sólo el Inicio: mostrarle enlaces que devuelven "Acceso denegado" es peor
-    // que no mostrarlos. Ver "Pendiente: habilitar el rol Cliente" en CLAUDE.md.
+    // HU-15: el rol Cliente usa Operaciones y Simulador, sobre su empresa. SICORE y todo
+    // el grupo Administración son del Estudio: mostrarle enlaces que devuelven "Acceso
+    // denegado" es peor que no mostrarlos. Ocultarlos es comodidad, no seguridad: cada
+    // controlador lo exige con [Authorize], y los datos los filtra el servicio.
     var esEstudio = User.IsInRole("Estudio");
+    var operaEnElSistema = esEstudio || User.IsInRole("Cliente");
 
     // El usuario no tiene nombre cargado, sólo email: se muestra el email y el avatar
     // lleva las dos primeras letras de la parte anterior a la arroba.
@@ -62,7 +64,7 @@
                     <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-home" /></svg>Inicio
                 </a>
 
-                @if (esEstudio)
+                @if (operaEnElSistema)
                 {
                     <div class="menu-grupo">Operación</div>
                     <a class="menu-item @Activo("Operaciones")" asp-controller="Operaciones" asp-action="Index">
@@ -71,6 +73,10 @@
                     <a class="menu-item @Activo("Simulador")" asp-controller="Simulador" asp-action="Index">
                         <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-calc" /></svg>Simulador
                     </a>
+                }
+
+                @if (esEstudio)
+                {
                     <a class="menu-item @Activo("Sicore")" asp-controller="Sicore" asp-action="Index">
                         <svg class="icono" width="17" height="17" viewBox="0 0 24 24"><use href="#i-upload" /></svg>SICORE
                     </a>

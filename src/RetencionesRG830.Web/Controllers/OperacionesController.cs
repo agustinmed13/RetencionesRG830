@@ -9,12 +9,14 @@ using RetencionesRG830.Web.Infraestructura;
 
 namespace RetencionesRG830.Web.Controllers;
 
-[Authorize(Roles = "Estudio")]
+// HU-15: el rol Cliente también entra, pero sólo a los datos de su empresa. Eso no lo
+// decide este atributo sino el servicio, con el alcance que le pasa cada acción.
+[Authorize(Roles = "Estudio,Cliente")]
 public class OperacionesController : Controller
 {
     // Sin DbContext a propósito: todas las consultas pasan por el servicio, que es lo
-    // que los tests pueden probar. Ahí va a ir el filtro por empresa del rol Cliente
-    // (HU-15); una consulta escrita acá se lo saltearía sin que ningún test lo note.
+    // que los tests pueden probar, y ahí está el filtro por empresa del rol Cliente
+    // (HU-15). Una consulta escrita acá se lo saltearía sin que ningún test lo note.
     private readonly ServicioRegistroOperaciones _registro;
     private readonly GeneradorCertificadoPdf _pdf;
 
@@ -25,21 +27,31 @@ public class OperacionesController : Controller
         _registro = registro;
         _pdf = pdf;
     }
+
+    /// <summary>Qué empresas puede ver el usuario de este pedido (HU-15).</summary>
+    private AlcanceEmpresa Alcance => User.Alcance();
+
     public async Task<IActionResult> Index(int? clienteId)
     {
+        // Un usuario Cliente ve su empresa aunque no la pida. Si pide otra, el servicio
+        // no la encuentra: el listado dice "cliente inexistente" y viene vacío.
+        if (clienteId is null && Alcance.ClienteId is int propio)
+            clienteId = propio;
+
         ViewBag.ClienteId = clienteId;
+        ViewBag.VeTodasLasEmpresas = Alcance.TodasLasEmpresas;
 
         // El nombre del cliente filtrado se busca aparte y no se toma de la primera
         // operación: un cliente sin operaciones todavía también tiene que mostrarlo.
         // Si está de baja, el listado no ofrece "Nueva operación" (regla 11).
         if (clienteId is not null)
         {
-            var cliente = await _registro.ObtenerClienteAsync(clienteId.Value);
+            var cliente = await _registro.ObtenerClienteAsync(Alcance, clienteId.Value);
             ViewBag.ClienteRazonSocial = cliente?.RazonSocial;
             ViewBag.ClienteActivo = cliente?.Activo ?? false;
         }
 
-        var operaciones = await _registro.ListarOperacionesAsync(clienteId);
+        var operaciones = await _registro.ListarOperacionesAsync(Alcance, clienteId);
 
         return View(operaciones);
     }
@@ -105,14 +117,14 @@ public class OperacionesController : Controller
         Regimen? version = null;
         if (!faltanDatos)
         {
-            var proveedorDelCliente = await _registro.ProveedorPerteneceAlClienteAsync(modelo.ProveedorId, modelo.ClienteId);
+            var proveedorDelCliente = await _registro.ProveedorPerteneceAlClienteAsync(Alcance, modelo.ProveedorId, modelo.ClienteId);
             version = await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion);
             faltanDatos = !proveedorDelCliente || version is null;
         }
 
         if (!faltanDatos)
         {
-            modelo.Resultado = await _registro.SimularAsync(ArmarOperacion(modelo, version!.Id));
+            modelo.Resultado = await _registro.SimularAsync(Alcance, ArmarOperacion(modelo, version!.Id));
         }
 
         return PartialView("_PanelCalculo", modelo);
@@ -138,9 +150,9 @@ public class OperacionesController : Controller
         var regimen = (await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion))!;
         var operacion = ArmarOperacion(modelo, regimen.Id);
 
-        modelo.Resultado = await _registro.SimularAsync(operacion);
+        modelo.Resultado = await _registro.SimularAsync(Alcance, operacion);
 
-        var proveedor = (await _registro.ObtenerProveedorAsync(modelo.ProveedorId))!;
+        var proveedor = (await _registro.ObtenerProveedorAsync(Alcance, modelo.ProveedorId))!;
         modelo.ProveedorNombre = proveedor.RazonSocial;
         modelo.ProveedorCuit = proveedor.Cuit;
         modelo.ProveedorCondicion = FormatoProveedor.Condicion(proveedor);
@@ -149,7 +161,7 @@ public class OperacionesController : Controller
         modelo.RegimenVigenciaDesde = regimen.VigenciaDesde;
         // Sólo se anticipa un número si se va a emitir certificado (regla 10).
         if (modelo.EmiteCertificado)
-            modelo.ProximoNumeroCertificado = await _registro.SiguienteNumeroCertificadoAsync(modelo.ClienteId);
+            modelo.ProximoNumeroCertificado = await _registro.SiguienteNumeroCertificadoAsync(Alcance, modelo.ClienteId);
         await CompletarAvisosAsync(modelo);
 
         return View("Confirmar", modelo);
@@ -192,7 +204,7 @@ public class OperacionesController : Controller
         // confía en una versión que haya viajado desde la pantalla de revisión.
         var regimen = (await _registro.VersionVigenteAsync(modelo.CodigoRegimen, modelo.FechaRetencion))!;
         var operacion = ArmarOperacion(modelo, regimen.Id);
-        await _registro.RegistrarAsync(operacion);
+        await _registro.RegistrarAsync(Alcance, operacion);
 
         return RedirectToAction(nameof(Detalle), new { id = operacion.Id });
     }
@@ -200,7 +212,7 @@ public class OperacionesController : Controller
     [HttpGet]
     public async Task<IActionResult> Anular(int id)
     {
-        var operacion = await _registro.ObtenerOperacionAsync(id);
+        var operacion = await _registro.ObtenerOperacionAsync(Alcance, id);
 
         if (operacion is null) return NotFound();
 
@@ -240,7 +252,14 @@ public class OperacionesController : Controller
         // de la pregunta. Lo decide el servicio, en el mismo UPDATE.
         try
         {
-            await _registro.AnularAsync(id, motivo.Trim(), usuarioId);
+            await _registro.AnularAsync(Alcance, id, motivo.Trim(), usuarioId);
+        }
+        // Va primero y responde igual que el GET con un Id inexistente: no existe, o es
+        // de otra empresa, que para este usuario es lo mismo (HU-15). Antes, un Id
+        // inexistente daba error 500.
+        catch (OperacionNoEncontradaException)
+        {
+            return NotFound();
         }
         catch (OperacionYaAnuladaException)
         {
@@ -273,7 +292,7 @@ public class OperacionesController : Controller
         // del cliente, pero los datos se pueden alterar antes de enviarlos; y una
         // operación con el proveedor de otro cliente ensuciaría el acumulado de las
         // dos empresas. El servicio lo vuelve a controlar al simular y al registrar.
-        else if (!await _registro.ProveedorPerteneceAlClienteAsync(modelo.ProveedorId, modelo.ClienteId))
+        else if (!await _registro.ProveedorPerteneceAlClienteAsync(Alcance, modelo.ProveedorId, modelo.ClienteId))
             ModelState.AddModelError(nameof(modelo.ProveedorId), "El proveedor elegido no pertenece a este cliente.");
 
         if (modelo.CodigoRegimen <= 0)
@@ -317,14 +336,22 @@ public class OperacionesController : Controller
     /// cliente no hay a quién mostrarle proveedores. Por eso se rechaza el pedido
     /// entero (ver Rechazar), en lugar de devolver un formulario sin proveedores y
     /// sin explicación.
+    ///
+    /// HU-15: un usuario Cliente opera siempre sobre su empresa. Si el pedido no trae
+    /// cliente (por ejemplo, "Nueva operación" desde el Inicio), se usa la suya. Si trae
+    /// otro, el servicio no lo encuentra y el pedido se rechaza igual que con un cliente
+    /// inexistente: no se le dice que esa empresa existe.
     /// </summary>
     private async Task<string?> ValidarClienteAsync(OperacionViewModel modelo)
     {
+        if (modelo.ClienteId <= 0 && Alcance.ClienteId is int propio)
+            modelo.ClienteId = propio;
+
         if (modelo.ClienteId <= 0)
             return "El pedido llegó sin el cliente de la operación, así que no se registró nada. "
                  + "Volvé a cargarla desde el listado de operaciones del cliente.";
 
-        var cliente = await _registro.ObtenerClienteAsync(modelo.ClienteId);
+        var cliente = await _registro.ObtenerClienteAsync(Alcance, modelo.ClienteId);
         if (cliente is null)
             return "El cliente indicado no existe, así que no se registró nada.";
 
@@ -333,7 +360,9 @@ public class OperacionesController : Controller
             return $"{cliente.RazonSocial} está dado de baja: no se le registran operaciones. "
                  + "El estudio da de baja a un cliente después de cerrar su último mes, así que no "
                  + "quedan operaciones atrasadas por cargar. Si se dio de baja por error, "
-                 + "reactivalo desde Clientes.";
+                 // Reactivar es una función del Estudio: al rol Cliente no se le
+                 // indica una pantalla a la que no puede entrar.
+                 + (Alcance.TodasLasEmpresas ? "reactivalo desde Clientes." : "comunicate con el estudio.");
 
         modelo.ClienteRazonSocial = cliente.RazonSocial;
         return null;
@@ -400,7 +429,7 @@ public class OperacionesController : Controller
 
     public async Task<IActionResult> Detalle(int id)
     {
-        var operacion = await _registro.ObtenerOperacionAsync(id);
+        var operacion = await _registro.ObtenerOperacionAsync(Alcance, id);
 
         if (operacion is null) return NotFound();
 
@@ -414,7 +443,7 @@ public class OperacionesController : Controller
     /// </summary>
     public async Task<IActionResult> Certificado(int id)
     {
-        var operacion = await _registro.ObtenerOperacionAsync(id);
+        var operacion = await _registro.ObtenerOperacionAsync(Alcance, id);
 
         if (operacion is null) return NotFound();
         if (operacion.Anulada)
@@ -460,7 +489,7 @@ public class OperacionesController : Controller
         // Sólo se consideran proveedores de este cliente: con uno ajeno, la ayuda
         // se muestra como si no hubiera proveedor elegido.
         var proveedor = modelo.ProveedorId > 0
-            ? await _registro.ProveedorDelClienteAsync(modelo.ProveedorId, modelo.ClienteId)
+            ? await _registro.ProveedorDelClienteAsync(Alcance, modelo.ProveedorId, modelo.ClienteId)
             : null;
         // La versión que rige a la fecha de retención (regla 9). La ayuda dice desde
         // cuándo rigen esos valores, para que se vea con cuáles se va a calcular; y
@@ -477,7 +506,7 @@ public class OperacionesController : Controller
 
         // El comprobante repetido no depende del régimen.
         modelo.ComprobantesRepetidos = proveedor is not null && modelo.PuntoVenta > 0 && modelo.NumeroComprobante > 0
-            ? await _registro.OperacionesConMismoComprobanteAsync(ArmarOperacion(modelo, 0))
+            ? await _registro.OperacionesConMismoComprobanteAsync(Alcance, ArmarOperacion(modelo, 0))
             : new List<Operacion>();
     }
 
@@ -487,7 +516,7 @@ public class OperacionesController : Controller
         // ayuda que la pantalla muestra debajo al elegir: CUIT y condición. La ayuda
         // del régimen no va acá porque depende del proveedor elegido: la arma
         // CompletarAvisosAsync y llega con el panel de cálculo.
-        var proveedores = await _registro.ProveedoresActivosAsync(clienteId);
+        var proveedores = await _registro.ProveedoresActivosAsync(Alcance, clienteId);
 
         ViewBag.Proveedores = proveedores
             .Select(p => new OpcionConAyuda(p.Id, p.RazonSocial,
@@ -511,7 +540,7 @@ public class OperacionesController : Controller
             })
             .ToList();
 
-        var cliente = await _registro.ObtenerClienteAsync(clienteId);
+        var cliente = await _registro.ObtenerClienteAsync(Alcance, clienteId);
         ViewBag.ClienteCuit = cliente?.Cuit;
     }
         /// <summary>

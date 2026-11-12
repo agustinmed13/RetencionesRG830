@@ -1,3 +1,4 @@
+using RetencionesRG830.Application.Servicios;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
 using RetencionesRG830.Infrastructure.Persistencia;
@@ -108,7 +109,7 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        var operaciones = await servicio.ListarOperacionesAsync(null);
+        var operaciones = await servicio.ListarOperacionesAsync(AlcanceEmpresa.Estudio, null);
 
         // Más reciente primero; en el mismo día, la cargada después va primero.
         Assert.Equal(new[] { _operacionB1009, _operacionA1009, _operacionA0509 }, operaciones.Select(o => o.Id));
@@ -126,7 +127,7 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        var operaciones = await servicio.ListarOperacionesAsync(_clienteA);
+        var operaciones = await servicio.ListarOperacionesAsync(AlcanceEmpresa.Estudio, _clienteA);
 
         Assert.Equal(new[] { _operacionA1009, _operacionA0509 }, operaciones.Select(o => o.Id));
     }
@@ -137,7 +138,7 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        var operacion = await servicio.ObtenerOperacionAsync(_operacionB1009);
+        var operacion = await servicio.ObtenerOperacionAsync(AlcanceEmpresa.Estudio, _operacionB1009);
 
         Assert.NotNull(operacion);
         Assert.Equal("Agroinsumos del Norte S.R.L.", operacion!.Cliente!.RazonSocial);
@@ -151,7 +152,7 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        Assert.Null(await servicio.ObtenerOperacionAsync(_operacionB1009 + 1000));
+        Assert.Null(await servicio.ObtenerOperacionAsync(AlcanceEmpresa.Estudio, _operacionB1009 + 1000));
     }
 
     [Fact]
@@ -160,12 +161,12 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        Assert.Equal("Metalúrgica del Valle S.A.", (await servicio.ObtenerClienteAsync(_clienteA))!.RazonSocial);
-        Assert.Null(await servicio.ObtenerClienteAsync(_clienteB + 1000));
+        Assert.Equal("Metalúrgica del Valle S.A.", (await servicio.ObtenerClienteAsync(AlcanceEmpresa.Estudio, _clienteA))!.RazonSocial);
+        Assert.Null(await servicio.ObtenerClienteAsync(AlcanceEmpresa.Estudio, _clienteB + 1000));
 
         // ObtenerProveedorAsync no mira el cliente: también trae uno de baja.
-        Assert.Equal("Servicios del Sur S.H.", (await servicio.ObtenerProveedorAsync(_proveedorAInactivo))!.RazonSocial);
-        Assert.Null(await servicio.ObtenerProveedorAsync(_proveedorB + 1000));
+        Assert.Equal("Servicios del Sur S.H.", (await servicio.ObtenerProveedorAsync(AlcanceEmpresa.Estudio, _proveedorAInactivo))!.RazonSocial);
+        Assert.Null(await servicio.ObtenerProveedorAsync(AlcanceEmpresa.Estudio, _proveedorB + 1000));
     }
 
     [Fact]
@@ -174,8 +175,8 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        Assert.NotNull(await servicio.ProveedorDelClienteAsync(_proveedorA, _clienteA));
-        Assert.Null(await servicio.ProveedorDelClienteAsync(_proveedorB, _clienteA));
+        Assert.NotNull(await servicio.ProveedorDelClienteAsync(AlcanceEmpresa.Estudio, _proveedorA, _clienteA));
+        Assert.Null(await servicio.ProveedorDelClienteAsync(AlcanceEmpresa.Estudio, _proveedorB, _clienteA));
     }
 
     [Fact]
@@ -184,7 +185,7 @@ public class ConsultasOperacionesTests : IDisposable
         var (servicio, db) = Nuevo();
         using var _ = db;
 
-        var proveedores = await servicio.ProveedoresActivosAsync(_clienteA);
+        var proveedores = await servicio.ProveedoresActivosAsync(AlcanceEmpresa.Estudio, _clienteA);
 
         // Sin el de baja (Servicios del Sur) ni el de otro cliente (Transportes).
         Assert.Equal(new[] { _proveedorA2, _proveedorA }, proveedores.Select(p => p.Id));

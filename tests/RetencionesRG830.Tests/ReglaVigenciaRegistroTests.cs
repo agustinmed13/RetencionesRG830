@@ -1,3 +1,4 @@
+using RetencionesRG830.Application.Servicios;
 using Microsoft.EntityFrameworkCore;
 using RetencionesRG830.Domain.Entidades;
 using RetencionesRG830.Domain.Enums;
@@ -103,7 +104,7 @@ public class ReglaVigenciaRegistroTests : IDisposable
     private async Task<Operacion> Registrar(int regimenId, DateOnly fecha, decimal gravado)
     {
         using var db = new RetencionesRG830DbContext(_opciones);
-        return await new ServicioRegistroOperaciones(db).RegistrarAsync(new Operacion
+        return await new ServicioRegistroOperaciones(db).RegistrarAsync(AlcanceEmpresa.Estudio, new Operacion
         {
             ClienteId = _clienteId,
             ProveedorId = _proveedorId,

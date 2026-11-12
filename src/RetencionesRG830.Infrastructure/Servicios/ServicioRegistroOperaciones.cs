@@ -13,6 +13,16 @@ namespace RetencionesRG830.Infrastructure.Servicios;
 /// Está separado del controlador para poder probarlo automáticamente: un
 /// controlador necesita un servidor web corriendo para ejecutarse, un
 /// servicio como este no.
+///
+/// HU-15 (RF-04, RN-17): cada método que lee o escribe datos de una empresa recibe el
+/// AlcanceEmpresa del usuario como primer parámetro, obligatorio. Lo que queda fuera del
+/// alcance se comporta como si no existiera: null, una lista vacía, o el mismo error
+/// que da un Id inexistente. El filtro va acá y no en el controlador porque acá lo
+/// pueden probar los tests (AislamientoEmpresasTests).
+///
+/// No reciben alcance los métodos sin datos de una empresa (VersionVigenteAsync,
+/// RegimenesAsync) ni los del archivo de SICORE, que es una función exclusiva del rol
+/// Estudio: SicoreController la exige con [Authorize(Roles = "Estudio")].
 /// </summary>
 public class ServicioRegistroOperaciones
 {
@@ -22,6 +32,18 @@ public class ServicioRegistroOperaciones
     {
         _db = db;
     }
+
+    /// <summary>El mensaje para un cliente inexistente o fuera del alcance: es el mismo.</summary>
+    private const string ClienteInexistente = "El cliente indicado no existe.";
+
+    /// <summary>
+    /// Deja en la consulta sólo las operaciones de las empresas que el usuario puede
+    /// ver. Cada consulta de operaciones de una empresa pasa por acá.
+    /// </summary>
+    private static IQueryable<Operacion> DeEmpresasVisibles(IQueryable<Operacion> operaciones, AlcanceEmpresa alcance) =>
+        alcance.TodasLasEmpresas ? operaciones
+        : alcance.ClienteId is int clienteId ? operaciones.Where(o => o.ClienteId == clienteId)
+        : operaciones.Where(o => false);
 
     /// <summary>
     /// La versión del régimen que rige en la fecha (regla 9), con sus tramos de
@@ -51,9 +73,15 @@ public class ServicioRegistroOperaciones
     /// lo que permite auditar después con qué valores se calculó. Así ni el seed,
     /// ni un formulario alterado, ni ningún otro código pueden calcular con una
     /// versión que no rige en esa fecha.
+    ///
+    /// La empresa de la operación tiene que estar en el alcance: el resultado muestra
+    /// el acumulado del mes y lo ya retenido, que son datos de esa empresa.
     /// </summary>
-    public async Task<ResultadoCalculoRetencion> SimularAsync(Operacion operacion)
+    public async Task<ResultadoCalculoRetencion> SimularAsync(AlcanceEmpresa alcance, Operacion operacion)
     {
+        if (!alcance.Incluye(operacion.ClienteId))
+            throw new InvalidOperationException(ClienteInexistente);
+
         var proveedor = await _db.Proveedores.FindAsync(operacion.ProveedorId)
             ?? throw new InvalidOperationException("El proveedor indicado no existe.");
 
@@ -99,15 +127,20 @@ public class ServicioRegistroOperaciones
     /// cerrar el anterior. La pantalla lo controla antes con un mensaje amable; acá
     /// se vuelve a controlar porque es por donde pasa todo registro.
     /// </summary>
-    public async Task<Operacion> RegistrarAsync(Operacion operacion)
+    public async Task<Operacion> RegistrarAsync(AlcanceEmpresa alcance, Operacion operacion)
     {
-        var cliente = await _db.Clientes.FindAsync(operacion.ClienteId)
-            ?? throw new InvalidOperationException("El cliente indicado no existe.");
+        // Una empresa fuera del alcance da el mismo error que una inexistente (HU-15):
+        // se controla antes de leerla, para no decir nada de ella, ni que está de baja.
+        var cliente = alcance.Incluye(operacion.ClienteId)
+            ? await _db.Clientes.FindAsync(operacion.ClienteId)
+            : null;
+        if (cliente is null)
+            throw new InvalidOperationException(ClienteInexistente);
         if (!cliente.Activo)
             throw new InvalidOperationException(
                 $"El cliente {cliente.RazonSocial} está dado de baja: no se le pueden registrar operaciones.");
 
-        var resultado = await SimularAsync(operacion);
+        var resultado = await SimularAsync(alcance, operacion);
 
         operacion.MontoRetenido = resultado.RetencionAPracticar;
 
@@ -119,7 +152,7 @@ public class ServicioRegistroOperaciones
         // porque suma al acumulado del mes. Sin número no consume correlativo, así
         // que los certificados emitidos no tienen saltos.
         operacion.NumeroCertificado = resultado.RetencionAPracticar > 0
-            ? await SiguienteNumeroCertificadoAsync(operacion.ClienteId)
+            ? await SiguienteNumeroCertificadoAsync(alcance, operacion.ClienteId)
             : null;
         operacion.FechaCarga = DateTime.Now;
 
@@ -139,8 +172,12 @@ public class ServicioRegistroOperaciones
     /// operaciones calculadas con la vieja y con la nueva son del mismo régimen y
     /// tienen que acumularse (reglas 1, 2 y 3). Agrupando por RegimenId quedaban
     /// separadas: el piso se aplicaba dos veces y no se descontaba lo ya retenido.
+    ///
+    /// Es privado: devuelve datos de una empresa sin recibir alcance, y sólo lo usa
+    /// SimularAsync, que controla el alcance antes de llamarlo. Antes de la HU-15 era
+    /// público, aunque nadie más lo usaba.
     /// </summary>
-    public async Task<(decimal Gravado, decimal Retenido)> CalcularAcumuladoDelMesAsync(Operacion operacion)
+    private async Task<(decimal Gravado, decimal Retenido)> CalcularAcumuladoDelMesAsync(Operacion operacion)
     {
         var primerDia = new DateOnly(operacion.FechaRetencion.Year, operacion.FechaRetencion.Month, 1);
         var ultimoDia = primerDia.AddMonths(1).AddDays(-1);
@@ -168,8 +205,10 @@ public class ServicioRegistroOperaciones
     /// formulario y el cálculo en vivo, para avisar antes de llegar al error de
     /// SimularAsync.
     /// </summary>
-    public Task<bool> ProveedorPerteneceAlClienteAsync(int proveedorId, int clienteId) =>
-        _db.Proveedores.AnyAsync(p => p.Id == proveedorId && p.ClienteId == clienteId);
+    public Task<bool> ProveedorPerteneceAlClienteAsync(AlcanceEmpresa alcance, int proveedorId, int clienteId) =>
+        alcance.Incluye(clienteId)
+            ? _db.Proveedores.AnyAsync(p => p.Id == proveedorId && p.ClienteId == clienteId)
+            : Task.FromResult(false);
 
     /// <summary>
     /// Las operaciones vigentes del mismo cliente y proveedor con el mismo comprobante
@@ -179,9 +218,12 @@ public class ServicioRegistroOperaciones
     /// operador, que decide. Las anuladas no cuentan: volver a cargar un comprobante
     /// después de anular su operación es la forma normal de corregir un error.
     /// Pendiente de confirmar con el contador del estudio (ver CLAUDE.md).
+    ///
+    /// Fuera del alcance devuelve una lista vacía: el aviso muestra número de
+    /// certificado y fecha de las operaciones encontradas.
     /// </summary>
-    public Task<List<Operacion>> OperacionesConMismoComprobanteAsync(Operacion operacion) =>
-        _db.Operaciones
+    public Task<List<Operacion>> OperacionesConMismoComprobanteAsync(AlcanceEmpresa alcance, Operacion operacion) =>
+        DeEmpresasVisibles(_db.Operaciones, alcance)
             .Where(o => o.ClienteId == operacion.ClienteId
                      && o.ProveedorId == operacion.ProveedorId
                      && o.TipoComprobante == operacion.TipoComprobante
@@ -196,9 +238,15 @@ public class ServicioRegistroOperaciones
     /// El próximo número de certificado correlativo del cliente. Es público para
     /// poder anticiparlo en la pantalla de confirmación; el número definitivo se
     /// vuelve a calcular en RegistrarAsync, en el momento de guardar.
+    ///
+    /// Fuera del alcance es un error: el número diría cuántos certificados emitió
+    /// otra empresa.
     /// </summary>
-    public async Task<int> SiguienteNumeroCertificadoAsync(int clienteId)
+    public async Task<int> SiguienteNumeroCertificadoAsync(AlcanceEmpresa alcance, int clienteId)
     {
+        if (!alcance.Incluye(clienteId))
+            throw new InvalidOperationException(ClienteInexistente);
+
         // Max ignora las operaciones sin número (las que no retuvieron) y cuenta
         // las anuladas, que conservan el suyo: así el número no se reutiliza.
         var ultimo = await _db.Operaciones
@@ -287,11 +335,17 @@ public class ServicioRegistroOperaciones
     /// lee primero. Antes se leía, se preguntaba y se guardaba: dos personas a la vez
     /// leían las dos "no anulada", y la segunda pisaba a la primera sin ningún error.
     /// Así decide la base, en un solo paso: uno de los dos pedidos encuentra cero filas.
+    ///
+    /// La empresa va en el mismo WHERE (HU-15): una operación de otra empresa no se
+    /// toca. Si no existe o está fuera del alcance, lanza OperacionNoEncontradaException,
+    /// y eso se decide ANTES de mirar si estaba anulada: "ya estaba anulada" confirmaría
+    /// que existe. Antes de la HU-15, un Id inexistente daba InvalidOperationException y
+    /// la pantalla mostraba un error 500.
     /// </summary>
-    public async Task<Operacion> AnularAsync(int operacionId, string motivo, int usuarioId)
+    public async Task<Operacion> AnularAsync(AlcanceEmpresa alcance, int operacionId, string motivo, int usuarioId)
     {
         DateTime? fecha = DateTime.Now;
-        var anuladas = await _db.Operaciones
+        var anuladas = await DeEmpresasVisibles(_db.Operaciones, alcance)
             .Where(o => o.Id == operacionId && !o.Anulada)
             .ExecuteUpdateAsync(cambios => cambios
                 .SetProperty(o => o.Anulada, true)
@@ -299,8 +353,9 @@ public class ServicioRegistroOperaciones
                 .SetProperty(o => o.FechaAnulacion, fecha)
                 .SetProperty(o => o.AnuladaPorUsuarioId, usuarioId));
 
-        var operacion = await _db.Operaciones.FindAsync(operacionId)
-            ?? throw new InvalidOperationException("La operación indicada no existe.");
+        var operacion = await _db.Operaciones.FindAsync(operacionId);
+        if (operacion is null || !alcance.Incluye(operacion.ClienteId))
+            throw new OperacionNoEncontradaException();
 
         if (anuladas == 0)
         {
@@ -318,9 +373,9 @@ public class ServicioRegistroOperaciones
     // Consultas de las pantallas de Operaciones.
     //
     // Hasta noviembre de 2026 estaban escritas en OperacionesController. Se mudaron
-    // acá sin cambiarlas, como paso previo a la HU-15 (el rol Cliente ve sólo su
-    // empresa): ese filtro tiene que ir en el servicio, que es lo que los tests
-    // pueden probar, y para eso primero las consultas tienen que estar acá.
+    // acá primero sin cambiarlas, y después se les agregó el alcance de la HU-15 (el
+    // rol Cliente ve sólo su empresa): ese filtro tiene que ir en el servicio, que es
+    // lo que los tests pueden probar.
     // Cada una es la misma que tenía el controlador, incluido FindAsync donde lo
     // usaba: FindAsync mira primero las entidades que el contexto ya tiene en
     // memoria, y el servicio comparte el contexto del pedido con el controlador.
@@ -328,11 +383,12 @@ public class ServicioRegistroOperaciones
 
     /// <summary>
     /// El listado de operaciones, con cliente, proveedor y régimen. Con clienteId,
-    /// sólo las de ese cliente; sin él, las de todos.
+    /// sólo las de ese cliente; sin él, las de todos. En los dos casos, sólo las de
+    /// las empresas del alcance: un Cliente que pide las de otra recibe una lista vacía.
     /// </summary>
-    public Task<List<Operacion>> ListarOperacionesAsync(int? clienteId)
+    public Task<List<Operacion>> ListarOperacionesAsync(AlcanceEmpresa alcance, int? clienteId)
     {
-        var query = _db.Operaciones
+        var query = DeEmpresasVisibles(_db.Operaciones, alcance)
             .Include(o => o.Cliente)
             .Include(o => o.Proveedor)
             .Include(o => o.Regimen)
@@ -353,39 +409,51 @@ public class ServicioRegistroOperaciones
     /// Una operación con cliente, proveedor y régimen, o null si no existe. La usan
     /// el Detalle, el certificado (el generador necesita los datos del cliente, el
     /// proveedor y el régimen, no sólo sus identificadores) y la pantalla de Anular.
+    /// Fuera del alcance, null: igual que si no existiera.
     /// </summary>
-    public Task<Operacion?> ObtenerOperacionAsync(int id) =>
-        _db.Operaciones
+    public Task<Operacion?> ObtenerOperacionAsync(AlcanceEmpresa alcance, int id) =>
+        DeEmpresasVisibles(_db.Operaciones, alcance)
             .Include(o => o.Cliente)
             .Include(o => o.Proveedor)
             .Include(o => o.Regimen)
             .FirstOrDefaultAsync(o => o.Id == id);
 
-    /// <summary>El cliente, o null si no existe.</summary>
-    public async Task<Cliente?> ObtenerClienteAsync(int clienteId) =>
-        await _db.Clientes.FindAsync(clienteId);
+    /// <summary>El cliente, o null si no existe o está fuera del alcance.</summary>
+    public async Task<Cliente?> ObtenerClienteAsync(AlcanceEmpresa alcance, int clienteId) =>
+        alcance.Incluye(clienteId) ? await _db.Clientes.FindAsync(clienteId) : null;
 
-    /// <summary>El proveedor, o null si no existe. No mira a qué cliente pertenece.</summary>
-    public async Task<Proveedor?> ObtenerProveedorAsync(int proveedorId) =>
-        await _db.Proveedores.FindAsync(proveedorId);
+    /// <summary>
+    /// El proveedor, o null si no existe o es de una empresa fuera del alcance. No mira
+    /// a qué cliente de las visibles pertenece: para eso, ProveedorDelClienteAsync.
+    /// </summary>
+    public async Task<Proveedor?> ObtenerProveedorAsync(AlcanceEmpresa alcance, int proveedorId)
+    {
+        var proveedor = await _db.Proveedores.FindAsync(proveedorId);
+        return proveedor is not null && alcance.Incluye(proveedor.ClienteId) ? proveedor : null;
+    }
 
     /// <summary>
     /// El proveedor si existe y es de ese cliente; si no, null. A diferencia de
     /// ProveedorPerteneceAlClienteAsync, devuelve la entidad: la ayuda del régimen
-    /// necesita saber si está inscripto y qué tipo de persona es.
+    /// necesita saber si está inscripto y qué tipo de persona es. Con el cliente fuera
+    /// del alcance, null.
     /// </summary>
-    public Task<Proveedor?> ProveedorDelClienteAsync(int proveedorId, int clienteId) =>
-        _db.Proveedores.FirstOrDefaultAsync(p => p.Id == proveedorId && p.ClienteId == clienteId);
+    public Task<Proveedor?> ProveedorDelClienteAsync(AlcanceEmpresa alcance, int proveedorId, int clienteId) =>
+        alcance.Incluye(clienteId)
+            ? _db.Proveedores.FirstOrDefaultAsync(p => p.Id == proveedorId && p.ClienteId == clienteId)
+            : Task.FromResult<Proveedor?>(null);
 
     /// <summary>
     /// Los proveedores activos del cliente, por razón social: los que ofrece el
-    /// desplegable de Nueva operación.
+    /// desplegable de Nueva operación. Con el cliente fuera del alcance, ninguno.
     /// </summary>
-    public Task<List<Proveedor>> ProveedoresActivosAsync(int clienteId) =>
-        _db.Proveedores
-            .Where(p => p.ClienteId == clienteId && p.Activo)
-            .OrderBy(p => p.RazonSocial)
-            .ToListAsync();
+    public Task<List<Proveedor>> ProveedoresActivosAsync(AlcanceEmpresa alcance, int clienteId) =>
+        alcance.Incluye(clienteId)
+            ? _db.Proveedores
+                .Where(p => p.ClienteId == clienteId && p.Activo)
+                .OrderBy(p => p.RazonSocial)
+                .ToListAsync()
+            : Task.FromResult(new List<Proveedor>());
 
     /// <summary>
     /// Todas las versiones de todos los regímenes, sin los tramos de escala. El

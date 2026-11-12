@@ -13,8 +13,12 @@ namespace RetencionesRG830.Web.Controllers;
 /// El Simulador es una calculadora: no guarda nada. Igual tiene que usar los
 /// valores que rigen en la fecha (regla 9): con la versión equivocada da un
 /// número falso igual que el registro, sólo que sin dejar rastro.
+///
+/// HU-15: también lo usa el rol Cliente, sin filtro por empresa, porque no lee datos
+/// de ninguna: sólo régimen, importes y condición del proveedor, que se escriben en el
+/// formulario. No mira el acumulado del mes ni operaciones registradas.
 /// </summary>
-[Authorize(Roles = "Estudio")]
+[Authorize(Roles = "Estudio,Cliente")]
 public class SimuladorController : Controller
 {
     private readonly RetencionesRG830DbContext _db;

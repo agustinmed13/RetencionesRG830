@@ -80,7 +80,7 @@ public class CuitConDistintoFormatoTests : IDisposable
     private async Task<Operacion> Registrar(int clienteId, int proveedorId, int regimenId, DateOnly fecha, long numero)
     {
         using var db = _base.NuevoContexto();
-        return await new ServicioRegistroOperaciones(db).RegistrarAsync(new Operacion
+        return await new ServicioRegistroOperaciones(db).RegistrarAsync(AlcanceEmpresa.Estudio, new Operacion
         {
             ClienteId = clienteId,
             ProveedorId = proveedorId,
